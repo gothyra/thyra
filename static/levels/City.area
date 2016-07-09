@@ -1,4 +1,7 @@
-
+<station key="City">
+    <name>City Area</name>
+    <intro>This looks like a nice little electronics lab, maybe solder something.</intro>
+ 
   
     <cubes>
     
@@ -84,11 +87,11 @@
     <cube id="71"  posx="10" posy="7" />
     <cube id="72"  posx="11" posy="7" />
     <cube id="73"  posx="12" posy="7" />
-    <cube id="74"  posx="13" posy="7" />
+ 
     
 
       
 
 
         </cubes>
-
+</station>

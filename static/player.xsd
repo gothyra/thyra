@@ -28,6 +28,7 @@
             </xs:sequence>
             <xs:attribute type="xs:string" name="nickname"/>
             <xs:attribute type="xs:string" name="position"/>
+	    <xs:attribute type="xs:string" name="area"/>
         </xs:complexType>
     </xs:element>
 </xs:schema>

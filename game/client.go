@@ -37,10 +37,6 @@ func (c Client) WriteLineToUser(msg string) {
 
 func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 	bufc := bufio.NewReader(c.Conn)
-	place , _ := server.GetRoom(c.Player.Position)
-	xmlStraps , _ := place.GetCubes(c.Player.Position)
-	
-	s := populate_s(xmlStraps)
 
 	for {
 		line, err := bufc.ReadString('\n')
@@ -64,52 +60,61 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 		}
 
 		log.Printf("Command by %s: %s  -  %s", c.Player.Nickname, command, commandText)
-
-		switch command {
+		
+		mapname := "City"
+		
+		
+		map_array := populate_maparray(server,mapname)
+		
+		printIntro(server,c,mapname)
+		
+		
+	switch command {
 		case "look":
 			fallthrough
 		case "watch":
 		case "map":
-			log.Printf(c.Player.Position)
-			updateMap(xmlStraps,c,c.Player.Position,s)
+			
+ 			findExits(map_array,c,c.Player.Position)
+			printExits(map_array,c,c.Player.Position)
+			updateMap(c,c.Player.Position,map_array)
 		case "go":
 		case "exits":
 			log.Printf(c.Player.Position)
-						
-		printExits(s,c,c.Player.Position)
+			printExits(map_array,c,c.Player.Position)
 		case "e":
 			fallthrough
 		case "east":
-		newpos :=findExits(s,c,c.Player.Position)[0]
+		newpos :=findExits(map_array,c,c.Player.Position)[0]
 		if newpos >0{
 		c.Player.Position = strconv.Itoa(newpos)
-		updateMap(xmlStraps,c,c.Player.Position,s)
-		findExits(s,c,c.Player.Position)
-		printExits(s,c,c.Player.Position)
+		updateMap(c,c.Player.Position,map_array)
+		findExits(map_array,c,c.Player.Position)
+		printExits(map_array,c,c.Player.Position)
 		}else {
-		c.WriteToUser("You can't go that way\n")
+		c.WriteToUser("\t\t\t\t\tYou can't go that way\n")
 		}
 		case "w":
 			fallthrough
 		case "west":
-		newpos :=findExits(s,c,c.Player.Position)[1]
+		newpos :=findExits(map_array,c,c.Player.Position)[1]
 		if newpos >0{
 		c.Player.Position = strconv.Itoa(newpos)
-		updateMap(xmlStraps,c,c.Player.Position,s)
-		findExits(s,c,c.Player.Position)
-		printExits(s,c,c.Player.Position)
+		updateMap(c,c.Player.Position,map_array)
+		findExits(map_array,c,c.Player.Position)
+		printExits(map_array,c,c.Player.Position)
 		}else {
 		c.WriteToUser("You can't go that way\n")
 		}
 		case "n":
 			fallthrough
 		case "north":
-		newpos :=findExits(s,c,c.Player.Position)[2]
+		newpos :=findExits(map_array,c,c.Player.Position)[2]
 		if newpos >0{
 		c.Player.Position = strconv.Itoa(newpos)
-		updateMap(xmlStraps,c,c.Player.Position,s)
-		findExits(s,c,c.Player.Position)
-		printExits(s,c,c.Player.Position)
+		updateMap(c,c.Player.Position,map_array)
+		findExits(map_array,c,c.Player.Position)
+		printExits(map_array,c,c.Player.Position)
 		}else {
 		c.WriteToUser("You can't go that way\n")
 		}
@@ -117,12 +122,12 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 			fallthrough
 		case "south":
 		
-		newpos :=findExits(s,c,c.Player.Position)[3]
+		newpos :=findExits(map_array,c,c.Player.Position)[3]
 		if newpos >0{
 		c.Player.Position = strconv.Itoa(newpos)
-		updateMap(xmlStraps,c,c.Player.Position,s)
-		findExits(s,c,c.Player.Position)
-		printExits(s,c,c.Player.Position)
+		updateMap(c,c.Player.Position,map_array)
+		findExits(map_array,c,c.Player.Position)
+		printExits(map_array,c,c.Player.Position)
 		}else {
 		c.WriteToUser("You can't go that way\n")
 		}
@@ -137,7 +142,7 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
  			for _, nickname := range server.OnlinePlayers() {
  				c.WriteToUser(nickname + "\n")
  			}
-			default:
+ 			default:
 		
 					continue
 		
@@ -153,29 +158,6 @@ func (c Client) WriteLinesFrom(ch <-chan string) {
 			return
 		}
 	}
-}
-
-func updateMap(xmlStraps []XMLCube,c Client,pos string,s [][]int) { //Print ton xarti
-	
-		intpos ,_ :=strconv.Atoi(pos)
- for x := 0; x< len(s); x++ {
-	 c.WriteToUser("|") 
-   
-	  for y := 0; y< len(s); y++ {
-		  
-        if(s[y][x] != 0 && s[y][x] != intpos){
-      c.WriteToUser("___|") 
-    } else if (s[y][x] == intpos ){
-	
-	   c.WriteToUser("_*_|") 
-	}else {
-c.WriteToUser("_X_|")
-
-	}
-	 
-}
-    c.WriteToUser("\n") 
-}
 }
 
 func findExits(s [][]int,c Client,pos string) [4] int {  //Briskei ta exits analoga me to position tou user  ,default possition otan kanei register einai 1
@@ -234,34 +216,30 @@ c.WriteToUser("\n")
 
 }
 
-func populate_s(xmlStraps []XMLCube) [][]int {  // Edw gemizw ton 2d array s , pou einai o xartis.
-													//to xmlStraps einai ena 1d array me ola ta cubes pou pernei apo to XML,
-	biggest :=0											// xmlStraps.ID , xmlStraps.POSX kai xmlStraps.POSY ,
-	 biggestx, _ := strconv.Atoi(xmlStraps[0].POSX)		// P.X an to 1o cube exei ID=1  POSX=10 POSY=5 
-	for v := 0;v< len(xmlStraps);v++ {					// tote tha balei tin timi sto 2d array s[10][5] = 1
-		posx,_ := strconv.Atoi(xmlStraps[v].POSX)
+func populate_maparray(s *Server,area string) [][]int { //Print ton xarti
+	
+		//intpos ,_ :=strconv.Atoi(pos)
+		
+//		fmt.Printf("%v",s.levels["area3"].Cubes)
+biggestx :=0
+biggesty :=0
+biggest :=0
+areaCubes := s.levels[area].Cubes
+
+	for nick := range s.levels[area].Cubes {
+ 		posx,_ := strconv.Atoi(areaCubes[nick].POSX)
 		if posx > biggestx {
 			biggestx = posx
 		}
-	}
-	fmt.Println("The biggest X is ", biggestx)   // briskw to megalutero POSX apo to xml  xmlStraps.POSX
-	
-
-	biggesty, _ := strconv.Atoi(xmlStraps[0].POSY)
-	for v := 0;v< len(xmlStraps);v++ {		
-		posy,_ := strconv.Atoi(xmlStraps[v].POSY)
+		
+		posy,_ := strconv.Atoi(areaCubes[nick].POSY)
 		if posy > biggesty {
 			biggesty = posy
 		}
-	}
-	fmt.Println("The biggest Y is ", biggesty)  // briskw to megalutero POSY xmlStraps.POSY
-	
-	
-	//Epeidi eixa bug me indexes kai tetoia, edw checkarw pio einai to megalutera apo to POSX kai POSY 
-	// PX an to megalutero POSX einai 10 kai to POSY einai 15 , tha ftiaksw enan 2d array 15-15
-	//An ftiaksw pinaka 10-15 douleuei swsta alla sto updateMap() exw bug otan ta for pane mexri to len(s) . To opoio tha einai 15 . kai an ftiaksw
-	// array 10-15 tote tha crasharei. :) - Tha checkaroume pios einai o swstos tropos na emfanizoume ton xarti. isws na to exw kanei lathos.
-	if biggestx > biggesty{
+ 		
+ 	}
+		fmt.Printf("BiggestX:%d  BiggestY:%d\n",biggestx,biggesty)
+if biggestx > biggesty{
 	biggest = biggestx
 	}
 	if biggestx < biggesty{
@@ -269,7 +247,7 @@ func populate_s(xmlStraps []XMLCube) [][]int {  // Edw gemizw ton 2d array s , p
 	}else{
 		biggest = biggestx
 	}
-   s := make([][]int,0)
+		   maparray := make([][]int,0)
 
   for i := 0; i <= biggest; i ++{
 
@@ -277,32 +255,55 @@ func populate_s(xmlStraps []XMLCube) [][]int {  // Edw gemizw ton 2d array s , p
       for j := 0; j <= biggest; j ++{
             tmp = append(tmp, 0)
       }
-    s = append(s, tmp)
+    maparray = append(maparray, tmp)
 
   } 
+fmt.Printf("Len(s) : %d\n",len(maparray))   
+	for z := range areaCubes {
+ 		  posx, _ :=strconv.Atoi(areaCubes[z].POSX)
+			posy, _ :=strconv.Atoi(areaCubes[z].POSY)
+			if(areaCubes[z].ID != "" ){
+			id , _ := strconv.Atoi(areaCubes[z].ID)
+			maparray[posx][posy] = id
+					}
+	fmt.Printf("Z=%d  --> s[%d,%d] = %d \n", z,posx,posy,maparray[posx][posy])
+			}	
+
+return maparray
+}
 
 
-fmt.Printf("Len(s) : %d\n",len(s))   
 
 
-
-		//Edw briskw ola ta cubes kai bazw tin timi sto 2d array.
-		//P.X sto xmlStraps[0]
-		  //   <cube id="1"  posx="0" posy="0" />
-		  // tha paei sto 2d array kai tha balei  s[0][0]=1
-		for z:= 0; z < len(xmlStraps);z++{
-		   posx, _ :=strconv.Atoi(xmlStraps[z].POSX)
-			posy, _ :=strconv.Atoi(xmlStraps[z].POSY)
-			
-			if(xmlStraps[z].ID != "" ){
-				
-			id , _ := strconv.Atoi(xmlStraps[z].ID)
+func updateMap(c Client,pos string,s [][]int) { //Print ton xarti
+		
+		intpos ,_ :=strconv.Atoi(pos)
+ for x := 0; x< len(s); x++ {
+	 c.WriteToUser("|") 
+   
+	  for y := 0; y< len(s); y++ {
+		  
+        if(s[y][x] != 0 && s[y][x] != intpos){
+      c.WriteToUser("___|") 
+    } else if (s[y][x] == intpos ){
 	
+	   c.WriteToUser("_*_|") 
+	}else {
+c.WriteToUser("_X_|")
 
-			s[posx][posy] = id
-		}
-	fmt.Printf("Z=%d  --> s[%d,%d] = %d \n", z,posx,posy,s[posx][posy])
 	}
-        	return s
+	 
+}
+    c.WriteToUser("\n") 
+}
+}
+
+func printIntro(s *Server,c Client,area string) { // Print to intro tis area
+
+areaIntro := s.levels[area].Intro
+
+c.WriteLineToUser(areaIntro)
+
+
 }
 

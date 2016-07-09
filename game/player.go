@@ -10,6 +10,8 @@ type Player struct {
 	Nickname   string      `xml:"nickname,attr"`
 	Gamename   string      `xml:"name"`
 	Position   string      `xml:"position,attr"`
+	Area   string     	 `xml:"area,attr"`
+
 	PlayerType string      `xml:"type"`
 	Ch         chan string `xml:"-"`
 	ActionLog  []string    `xml:"actions>action"`

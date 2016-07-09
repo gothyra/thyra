@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
-
+   	
 	"github.com/gothyra/thyra/game"
 )
 
@@ -23,6 +23,8 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	
 
 	ln, err := net.Listen("tcp", server.Config.Interface)
 	if err != nil {
@@ -66,6 +68,8 @@ func handleConnection(c net.Conn, msgchan chan<- string, addchan chan<- game.Cli
 	log.Println("New connection open:", c.RemoteAddr())
 	io.WriteString(c, server.Config.Motd)
 
+
+
 	var nickname string
 	questions := 0
 	for {
@@ -91,7 +95,7 @@ func handleConnection(c net.Conn, msgchan chan<- string, addchan chan<- game.Cli
 
 			if answer == "y" {
 				server.CreatePlayer(nickname)
-
+		
 				break
 			}
 		}
@@ -110,6 +114,8 @@ func handleConnection(c net.Conn, msgchan chan<- string, addchan chan<- game.Cli
 	}
 
 	client := game.NewClient(c, player)
+	
+	
 
 	if strings.TrimSpace(client.Nickname) == "" {
 		log.Println("invalid username")
@@ -126,6 +132,8 @@ func handleConnection(c net.Conn, msgchan chan<- string, addchan chan<- game.Cli
 	}()
 	io.WriteString(c, fmt.Sprintf("Welcome, %s!\n\n\r", client.Player.Nickname))
 	server.PlayerLoggedIn(client.Nickname)
+
+	
 
 	// I/O
 	go client.ReadLinesInto(msgchan, server)

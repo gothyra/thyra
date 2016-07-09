@@ -88,7 +88,8 @@ func (s *Server) LoadLevels() error {
 			return xmlerr
 		}
 		log.Printf(" loaded: %s\n", info.Name())
-	
+			s.addLevel(level)
+
 		return nil
 	}
 
@@ -176,6 +177,7 @@ func (s *Server) CreatePlayer(nick string) {
 	player := Player{
 		Nickname:   nick,
 		Position:  strconv.Itoa(1),
+		Area: "City",
 	}
 	s.addPlayer(player)
 }
@@ -230,3 +232,28 @@ func (s *Server) PlayerLoggedIn(nickname string) {
  
  	return online
  }
+ 
+ 
+  
+ func (s *Server) MapList() []string {
+ 	s.onlineLock.RLock()
+ 	defer s.onlineLock.RUnlock()
+ 
+ 	maplist := []string{}
+ 	for level := range s.levels {
+ 		maplist = append(maplist, level)
+ 	}
+ 
+ 	return maplist
+ }
+ 
+ 
+ 
+ func (s *Server) addLevel(level Level) error {
+	if level.Tag == "default" {
+		log.Printf("default level loaded: %s\n", level.Key)
+		s.DefaultLevel = level
+	}
+	s.levels[level.Key] = level
+	return nil
+}
