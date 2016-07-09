@@ -20,6 +20,7 @@ type Player struct {
 }
 
 type Attribute struct {
+	// TODO --> Attributes like STR DEX CON etc.
 	Name  string `xml:"name,attr"`
 	Value int64  `xml:"value"`
 }
