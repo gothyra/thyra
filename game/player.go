@@ -6,11 +6,11 @@ import (
 )
 
 type Player struct {
-	XMLName    xml.Name    `xml:"player"`
-	Nickname   string      `xml:"nickname,attr"`
-	Gamename   string      `xml:"name"`
-	Position   string      `xml:"position,attr"`
-	Area   string     	 `xml:"area,attr"`
+	XMLName  xml.Name `xml:"player"`
+	Nickname string   `xml:"nickname,attr"`
+	Gamename string   `xml:"name"`
+	Position string   `xml:"position,attr"`
+	Area     string   `xml:"area,attr"`
 
 	PlayerType string      `xml:"type"`
 	Ch         chan string `xml:"-"`
@@ -19,8 +19,8 @@ type Player struct {
 }
 
 type Attribute struct {
-	Name   string   `xml:"name,attr"`
-	Value  int64    `xml:"value"`
+	Name  string `xml:"name,attr"`
+	Value int64  `xml:"value"`
 }
 
 func (p *Player) LogAction(action string) {
@@ -59,7 +59,7 @@ func (p *Player) UpdateAttribute(name string, update int64) {
 	}
 
 	p.Attributes = append(p.Attributes, Attribute{
-		Name: name,
+		Name:  name,
 		Value: update,
 	})
 }

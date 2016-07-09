@@ -8,18 +8,18 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sync"
 	"strconv"
+	"sync"
 )
 
 type Server struct {
-	players      map[string]Player
-	levels       map[string]Level
-	workingdir   string
-	DefaultLevel Level
-	Config       ServerConfig
+	players       map[string]Player
+	levels        map[string]Level
+	workingdir    string
+	DefaultLevel  Level
+	Config        ServerConfig
 	onlineLock    sync.RWMutex
-    onlinePlayers map[string]struct{}
+	onlinePlayers map[string]struct{}
 }
 
 type ServerConfig struct {
@@ -34,10 +34,10 @@ func (s *Server) HasDefaultLevel() bool {
 
 func NewServer(serverdir string) *Server {
 	server := &Server{
-		players:    make(map[string]Player),
+		players:       make(map[string]Player),
 		onlinePlayers: make(map[string]struct{}),
-		levels:     make(map[string]Level),
-		workingdir: serverdir,
+		levels:        make(map[string]Level),
+		workingdir:    serverdir,
 	}
 
 	server.LoadConfig()
@@ -88,7 +88,7 @@ func (s *Server) LoadLevels() error {
 			return xmlerr
 		}
 		log.Printf(" loaded: %s\n", info.Name())
-			s.addLevel(level)
+		s.addLevel(level)
 
 		return nil
 	}
@@ -143,7 +143,6 @@ func (s *Server) LoadPlayer(playerName string) bool {
 	return true
 }
 
-
 func (s *Server) addPlayer(player Player) error {
 	s.players[player.Nickname] = player
 	return nil
@@ -158,7 +157,6 @@ func (s *Server) GetRoom(key string) (Level, bool) {
 	level, ok := s.levels[key]
 	return level, ok
 }
-
 
 func (s *Server) GetName() string {
 	return s.Config.Name
@@ -175,9 +173,9 @@ func (s *Server) CreatePlayer(nick string) {
 		return
 	}
 	player := Player{
-		Nickname:   nick,
-		Position:  strconv.Itoa(1),
-		Area: "City",
+		Nickname: nick,
+		Position: strconv.Itoa(1),
+		Area:     "City",
 	}
 	s.addPlayer(player)
 }
@@ -206,50 +204,44 @@ func (s *Server) OnExit(client Client) {
 	client.WriteLineToUser(fmt.Sprintf("Good bye %s", client.Player.Gamename))
 }
 
-
-
-// Patch apo Mixali gia na briskoume olous tous user pou einai connected 
+// Patch apo Mixali gia na briskoume olous tous user pou einai connected
 func (s *Server) PlayerLoggedIn(nickname string) {
- 	s.onlineLock.Lock()
+	s.onlineLock.Lock()
 	s.onlinePlayers[nickname] = struct{}{}
- 	s.onlineLock.Unlock()
- }
- 
- func (s *Server) PlayerLoggedOut(nickname string) {
- 	s.onlineLock.Lock()
- 	delete(s.onlinePlayers, nickname)
- 	s.onlineLock.Unlock()
- }
- 
- func (s *Server) OnlinePlayers() []string {
- 	s.onlineLock.RLock()
- 	defer s.onlineLock.RUnlock()
- 
- 	online := []string{}
- 	for nick := range s.onlinePlayers {
- 		online = append(online, nick)
- 	}
- 
- 	return online
- }
- 
- 
-  
- func (s *Server) MapList() []string {
- 	s.onlineLock.RLock()
- 	defer s.onlineLock.RUnlock()
- 
- 	maplist := []string{}
- 	for level := range s.levels {
- 		maplist = append(maplist, level)
- 	}
- 
- 	return maplist
- }
- 
- 
- 
- func (s *Server) addLevel(level Level) error {
+	s.onlineLock.Unlock()
+}
+
+func (s *Server) PlayerLoggedOut(nickname string) {
+	s.onlineLock.Lock()
+	delete(s.onlinePlayers, nickname)
+	s.onlineLock.Unlock()
+}
+
+func (s *Server) OnlinePlayers() []string {
+	s.onlineLock.RLock()
+	defer s.onlineLock.RUnlock()
+
+	online := []string{}
+	for nick := range s.onlinePlayers {
+		online = append(online, nick)
+	}
+
+	return online
+}
+
+func (s *Server) MapList() []string {
+	s.onlineLock.RLock()
+	defer s.onlineLock.RUnlock()
+
+	maplist := []string{}
+	for level := range s.levels {
+		maplist = append(maplist, level)
+	}
+
+	return maplist
+}
+
+func (s *Server) addLevel(level Level) error {
 	if level.Tag == "default" {
 		log.Printf("default level loaded: %s\n", level.Key)
 		s.DefaultLevel = level

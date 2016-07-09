@@ -7,7 +7,7 @@ import (
 func TestAttributeUpdate(t *testing.T) {
 	player := Player{}
 
-	player.UpdateAttribute("test", 10);
+	player.UpdateAttribute("test", 10)
 
 	if len(player.Attributes) != 1 {
 		t.Error("Player should have exact one attribute")
@@ -21,7 +21,7 @@ func TestAttributeUpdate(t *testing.T) {
 		t.Error("Not existing Player attribute should be exact 0")
 	}
 
-	player.UpdateAttribute("test", 10);
+	player.UpdateAttribute("test", 10)
 
 	if len(player.Attributes) != 1 {
 		t.Error("Player should have exact one attribute")
@@ -35,7 +35,7 @@ func TestAttributeUpdate(t *testing.T) {
 		t.Error("Not existing Player attribute should be exact 0")
 	}
 
-	player.UpdateAttribute("test", -30);
+	player.UpdateAttribute("test", -30)
 
 	if len(player.Attributes) != 1 {
 		t.Error("Player should have exact one attribute")
@@ -53,7 +53,7 @@ func TestAttributeUpdate(t *testing.T) {
 func TestActions(t *testing.T) {
 	player := Player{}
 
-	player.LogAction("test");
+	player.LogAction("test")
 
 	if len(player.ActionLog) != 1 {
 		t.Error("Player should have exact one action log entry")

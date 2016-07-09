@@ -8,9 +8,9 @@ import (
 func MakeTestLevel(name string, tag string) Level {
 	lvl := Level{
 		Key:   name,
-		Name:  "Room"+name,
-		Intro: "Room"+name+"Intro",
-		Tag: tag,
+		Name:  "Room" + name,
+		Intro: "Room" + name + "Intro",
+		Tag:   tag,
 	}
 	return lvl
 }
@@ -45,9 +45,9 @@ func TestLevelGoDirectionWithMissingDependencies(t *testing.T) {
 
 	var dependencies []Dependency
 	dependencies = append(dependencies, Dependency{
-		Key:"test",
-		OkMessage:"OK",
-		FailMessage:"FAIL",
+		Key:         "test",
+		OkMessage:   "OK",
+		FailMessage: "FAIL",
 	})
 
 	dir := MakeTestDirection("North", "b")
@@ -68,14 +68,14 @@ func TestLevelCanDoAction(t *testing.T) {
 	lvl1 := MakeTestLevel("A", "default")
 
 	action := Action{
-		Name:"testaction",
+		Name: "testaction",
 	}
 
 	var dependencies []Dependency
 	dependency := Dependency{
-		Key:"test",
-		OkMessage:"OK",
-		FailMessage:"FAIL",
+		Key:         "test",
+		OkMessage:   "OK",
+		FailMessage: "FAIL",
 	}
 	dependencies = append(dependencies, dependency)
 	action.Dependencies = dependencies
@@ -109,9 +109,9 @@ func TestLevelGoDirectionWithDependencies(t *testing.T) {
 	var dependencies []Dependency
 
 	dependency := Dependency{
-		Key:"test",
-		OkMessage:"OK",
-		FailMessage:"FAIL",
+		Key:         "test",
+		OkMessage:   "OK",
+		FailMessage: "FAIL",
 	}
 	dependencies = append(dependencies, dependency)
 
@@ -134,12 +134,12 @@ func TestCheckDependenciesAttribute(t *testing.T) {
 	p := Player{}
 
 	dependency := Dependency{
-		Key:"test",
-		Type:"attribute",
-		MinValue:"10",
-		MaxValue:"15",
-		OkMessage:"OK",
-		FailMessage:"FAIL",
+		Key:         "test",
+		Type:        "attribute",
+		MinValue:    "10",
+		MaxValue:    "15",
+		OkMessage:   "OK",
+		FailMessage: "FAIL",
 	}
 	var dependencies []Dependency
 	dependencies = append(dependencies, dependency)
@@ -179,10 +179,9 @@ func TestCheckDependenciesAttribute(t *testing.T) {
 	}
 }
 
-
 var timeTests = []struct {
-	min  string
-	max  string
+	min string
+	max string
 	out bool
 }{
 	{"00:00", "23:59", true},
@@ -198,53 +197,53 @@ func TestCheckDependenciesTime(t *testing.T) {
 
 	inOneMinute := time.Now().Add(time.Duration(1) * time.Minute)
 	timeTests = append(timeTests, struct {
-		min  string
-		max  string
+		min string
+		max string
 		out bool
-	}{inOneMinute.Format("15:04"), "23:59", false});
+	}{inOneMinute.Format("15:04"), "23:59", false})
 
 	beforeOneMinute := time.Now().Add(time.Duration(-1) * time.Minute)
 	timeTests = append(timeTests, struct {
-		min  string
-		max  string
+		min string
+		max string
 		out bool
-	}{"00:00", beforeOneMinute.Format("15:04"), false});
+	}{"00:00", beforeOneMinute.Format("15:04"), false})
 
 	timeTests = append(timeTests, struct {
-		min  string
-		max  string
+		min string
+		max string
 		out bool
-	}{beforeOneMinute.Format("15:04"), inOneMinute.Format("15:04"), true});
+	}{beforeOneMinute.Format("15:04"), inOneMinute.Format("15:04"), true})
 
 	timeTests = append(timeTests, struct {
-		min  string
-		max  string
+		min string
+		max string
 		out bool
-	}{time.Now().Format("15:04"), time.Now().Format("15:04"), true});
+	}{time.Now().Format("15:04"), time.Now().Format("15:04"), true})
 
 	for _, tt := range timeTests {
 
 		dependency := Dependency{
-			Key:"test",
-			Type:"time",
-			MinValue:tt.min,
-			MaxValue:tt.max,
-			OkMessage:"OK",
-			FailMessage:"FAIL",
+			Key:         "test",
+			Type:        "time",
+			MinValue:    tt.min,
+			MaxValue:    tt.max,
+			OkMessage:   "OK",
+			FailMessage: "FAIL",
 		}
 		var dependencies []Dependency
 		dependencies = append(dependencies, dependency)
 
 		ok, _ := CheckDependencies(dependencies, p, "YES")
 		if ok != tt.out {
-			t.Errorf("tests for time %q - %q failed, should be %v", tt.min, tt.max, tt.out )
+			t.Errorf("tests for time %q - %q failed, should be %v", tt.min, tt.max, tt.out)
 		}
 	}
 }
 
 var dateTests = []struct {
-	min  string
-	max  string
+	min string
+	max string
 	out bool
 }{
 	{"2014-01-01", "2020-12-31", true},
@@ -257,50 +256,49 @@ func TestCheckDependenciesDate(t *testing.T) {
 
 	inOneDay := time.Now().Add(time.Duration(24) * time.Hour)
 	dateTests = append(dateTests, struct {
-		min  string
-		max  string
+		min string
+		max string
 		out bool
-	}{inOneDay.Format("2006-01-02"), "2020-12-31", false});
+	}{inOneDay.Format("2006-01-02"), "2020-12-31", false})
 
 	beforeOneDay := time.Now().Add(time.Duration(-24) * time.Hour)
 	dateTests = append(dateTests, struct {
-		min  string
-		max  string
+		min string
+		max string
 		out bool
-	}{"2000-01-01", beforeOneDay.Format("2006-01-02"), false});
+	}{"2000-01-01", beforeOneDay.Format("2006-01-02"), false})
 
 	dateTests = append(dateTests, struct {
-		min  string
-		max  string
+		min string
+		max string
 		out bool
-	}{beforeOneDay.Format("2006-01-02"), inOneDay.Format("2006-01-02"), true});
+	}{beforeOneDay.Format("2006-01-02"), inOneDay.Format("2006-01-02"), true})
 
 	dateTests = append(dateTests, struct {
-		min  string
-		max  string
+		min string
+		max string
 		out bool
-	}{time.Now().Format("2006-01-02"), time.Now().Format("2006-01-02"), true});
+	}{time.Now().Format("2006-01-02"), time.Now().Format("2006-01-02"), true})
 
 	for _, tt := range dateTests {
 
 		dependency := Dependency{
-			Key:"test",
-			Type:"date",
-			MinValue:tt.min,
-			MaxValue:tt.max,
-			OkMessage:"OK",
-			FailMessage:"FAIL",
+			Key:         "test",
+			Type:        "date",
+			MinValue:    tt.min,
+			MaxValue:    tt.max,
+			OkMessage:   "OK",
+			FailMessage: "FAIL",
 		}
 		var dependencies []Dependency
 		dependencies = append(dependencies, dependency)
 
 		ok, _ := CheckDependencies(dependencies, p, "YES")
 		if ok != tt.out {
-			t.Errorf("tests for time %q - %q failed, should be %v", tt.min, tt.max, tt.out )
+			t.Errorf("tests for time %q - %q failed, should be %v", tt.min, tt.max, tt.out)
 		}
 	}
 }
-
 
 func TestLevelCanSeeDirection(t *testing.T) {
 	p := Player{}
@@ -349,7 +347,7 @@ func TestLevelGetRoomAction(t *testing.T) {
 	// knwon action
 	var actions []Action
 	action := Action{
-		Name:"testaction",
+		Name: "testaction",
 	}
 	actions = append(actions, action)
 	lvl1.Actions = actions

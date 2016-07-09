@@ -31,7 +31,7 @@ func TestLevelIsValidUsername(t *testing.T) {
 	for _, tt := range usernameTests {
 		s := s.IsValidUsername(tt.in)
 		if s != tt.out {
-			t.Errorf("tests for username %q failed, should be %v", tt.in, tt.out )
+			t.Errorf("tests for username %q failed, should be %v", tt.in, tt.out)
 		}
 	}
 }
