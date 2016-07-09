@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// Player holds all variables for a character.
 type Player struct {
 	XMLName  xml.Name `xml:"player"`
 	Nickname string   `xml:"nickname,attr"`
