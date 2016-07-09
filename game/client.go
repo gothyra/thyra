@@ -213,11 +213,7 @@ func printExits(s [][]int, c Client, pos string) { //akribws idio func me to fin
 
 }
 
-func populate_maparray(s *Server, area string) [][]int { //Print ton xarti
-
-	//intpos ,_ :=strconv.Atoi(pos)
-
-	//		fmt.Printf("%v",s.levels["area3"].Cubes)
+func populate_maparray(s *Server, area string) [][]int {
 	biggestx := 0
 	biggesty := 0
 	biggest := 0
