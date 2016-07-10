@@ -12,58 +12,49 @@ import (
 	"sync"
 )
 
-type Server struct {
-	players       map[string]Player
-	levels        map[string]Level
-	workingdir    string
-	DefaultLevel  Level
-	Config        ServerConfig
-	onlineLock    sync.RWMutex
-	onlinePlayers map[string]struct{}
-}
-
 type ServerConfig struct {
 	Name      string `xml:"name"`
 	Interface string `xml:"interface"`
 	Motd      string `xml:"motd"`
 }
 
-func (s *Server) HasDefaultLevel() bool {
-	return s.DefaultLevel.Key != ""
+type Server struct {
+	players       map[string]Player
+	levels        map[string]Level
+	staticDir     string
+	DefaultLevel  Level
+	Config        ServerConfig
+	onlineLock    sync.RWMutex
+	onlinePlayers map[string]struct{}
 }
 
-func NewServer(serverdir string) *Server {
-	server := &Server{
+func NewServer(staticDir string) *Server {
+	return &Server{
 		players:       make(map[string]Player),
 		onlinePlayers: make(map[string]struct{}),
 		levels:        make(map[string]Level),
-		workingdir:    serverdir,
+		staticDir:     staticDir,
 	}
-
-	server.LoadConfig()
-
-	return server
 }
 
 func (s *Server) LoadConfig() error {
 	log.Println("Loading config ...")
-	configFileName := s.workingdir + "/static/server.xml"
+
+	configFileName := filepath.Join(s.staticDir, "/server.xml")
 	fileContent, fileIoErr := ioutil.ReadFile(configFileName)
 	if fileIoErr != nil {
-		log.Printf("\n")
-		log.Printf("File %s could not be loaded\n", configFileName)
-		log.Printf("%v", fileIoErr)
+		log.Printf("%s could not be loaded: %v\n", configFileName, fileIoErr)
 		return fileIoErr
 	}
+
 	config := ServerConfig{}
 	if xmlerr := xml.Unmarshal(fileContent, &config); xmlerr != nil {
-		log.Printf("\n")
-		log.Printf("File %s could not be Unmarshaled\n", configFileName, xmlerr)
-		log.Printf("%v", xmlerr)
+		log.Printf("%s could not be unmarshaled: %v\n", configFileName, xmlerr)
 		return xmlerr
 	}
+
 	s.Config = config
-	log.Println(" config loaded")
+	log.Println("Config loaded.")
 	return nil
 }
 
@@ -73,34 +64,33 @@ func (s *Server) LoadLevels() error {
 		if info.IsDir() {
 			return nil
 		}
+
 		fileContent, fileIoErr := ioutil.ReadFile(path)
 		if fileIoErr != nil {
-			log.Printf("\n")
-			log.Printf("File %s could not be loaded\n", path)
-			log.Printf("%v", fileIoErr)
+			log.Printf("%s could not be loaded: %v\n", path, fileIoErr)
 			return fileIoErr
 		}
+
 		level := Level{}
 		if xmlerr := xml.Unmarshal(fileContent, &level); xmlerr != nil {
-			log.Printf("\n")
-			log.Printf("File %s could not be Unmarshaled\n", path, xmlerr)
-			log.Printf("%v", xmlerr)
+			log.Printf("%s could not be unmarshaled: %v\n", path, xmlerr)
 			return xmlerr
 		}
-		log.Printf(" loaded: %s\n", info.Name())
+
+		log.Printf("Loaded level %q\n", info.Name())
 		s.addLevel(level)
 
 		return nil
 	}
 
-	return filepath.Walk(s.workingdir+"/static/levels/", levelWalker)
+	return filepath.Walk(s.staticDir+"/levels/", levelWalker)
 }
 
 func (s *Server) getPlayerFileName(playerName string) (bool, string) {
 	if !s.IsValidUsername(playerName) {
 		return false, ""
 	}
-	return true, s.workingdir + "/static/player/" + playerName + ".player"
+	return true, s.staticDir + "/player/" + playerName + ".player"
 }
 
 func (s *Server) IsValidUsername(playerName string) bool {
@@ -114,33 +104,29 @@ func (s *Server) IsValidUsername(playerName string) bool {
 	return true
 }
 
-func (s *Server) LoadPlayer(playerName string) bool {
+func (s *Server) LoadPlayer(playerName string) (bool, error) {
 	ok, playerFileName := s.getPlayerFileName(playerName)
 	if !ok {
-		return false
+		return false, nil
 	}
-	log.Println("Loading player %s", playerFileName)
+	log.Printf("Loading player %q\n", playerFileName)
 
 	fileContent, fileIoErr := ioutil.ReadFile(playerFileName)
 	if fileIoErr != nil {
-		log.Printf("\n")
-		log.Printf("File %s could not be loaded\n", playerFileName)
-		log.Printf("%v", fileIoErr)
-		//return fileIoErr
-		return false
+		log.Printf("%s could not be loaded: %v\n", playerFileName, fileIoErr)
+		return true, fileIoErr
 	}
 
 	player := Player{}
 	if xmlerr := xml.Unmarshal(fileContent, &player); xmlerr != nil {
-		log.Printf("\n")
-		log.Printf("File %s could not be Unmarshaled\n", playerFileName, xmlerr)
-		log.Printf("%v", xmlerr)
-		return false
+		log.Printf("%s could not be unmarshaled: %v\n", playerFileName, xmlerr)
+		return true, xmlerr
 	}
-	log.Printf(" loaded: %s", player.Gamename)
+
+	log.Printf("Loaded player %q\n", player.Gamename)
 	s.addPlayer(player)
 
-	return true
+	return true, nil
 }
 
 func (s *Server) addPlayer(player Player) error {
@@ -168,14 +154,17 @@ func (s *Server) CreatePlayer(nick string) {
 		return
 	}
 	if _, err := os.Stat(playerFileName); err == nil {
-		s.LoadPlayer(nick)
-		fmt.Printf("Player %s does already exists", nick)
+		log.Printf("Player %q does already exist.\n", nick)
+		if _, err := s.LoadPlayer(nick); err != nil {
+			log.Printf("Player %s cannot be loaded: %v", nick, err)
+		}
 		return
 	}
 	player := Player{
 		Nickname: nick,
 		Position: strconv.Itoa(1),
-		Area:     "City",
+		// TODO: Make this configurable
+		Area: "City",
 	}
 	s.addPlayer(player)
 }
@@ -204,7 +193,6 @@ func (s *Server) OnExit(client Client) {
 	client.WriteLineToUser(fmt.Sprintf("Good bye %s", client.Player.Gamename))
 }
 
-// Patch apo Mixali gia na briskoume olous tous user pou einai connected
 func (s *Server) PlayerLoggedIn(nickname string) {
 	s.onlineLock.Lock()
 	s.onlinePlayers[nickname] = struct{}{}
