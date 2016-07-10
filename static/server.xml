@@ -1,5 +1,5 @@
 <server>
-    <name>GOMUD</name>
+    <name>THYRA</name>
     <interface>:4000</interface>
     <motd><![CDATA[
                           /\
