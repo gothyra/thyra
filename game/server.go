@@ -13,9 +13,8 @@ import (
 )
 
 type ServerConfig struct {
-	Name      string `xml:"name"`
-	Interface string `xml:"interface"`
-	Motd      string `xml:"motd"`
+	Name string `xml:"name"`
+	Motd string `xml:"motd"`
 }
 
 type Server struct {
@@ -107,6 +106,9 @@ func (s *Server) IsValidUsername(playerName string) bool {
 func (s *Server) LoadPlayer(playerName string) (bool, error) {
 	ok, playerFileName := s.getPlayerFileName(playerName)
 	if !ok {
+		return false, nil
+	}
+	if _, err := os.Stat(playerFileName); err != nil {
 		return false, nil
 	}
 	log.Printf("Loading player %q\n", playerFileName)
