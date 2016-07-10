@@ -39,11 +39,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	areas := make(map[string]map[string][][]int)
-	for areaID, area := range server.Areas {
-		areas[areaID] = make(map[string][][]int)
+	roomsMap := make(map[string]map[string][][]int)
+	for _, area := range server.Areas {
+		roomsMap[area.Name] = make(map[string][][]int)
 		for _, room := range area.Rooms {
-			areas[areaID][room.ID] = server.CreateRoom(areaID, room.ID)
+			roomsMap[area.Name][room.Name] = server.CreateRoom(area.Name, room.Name)
 		}
 	}
 
@@ -68,7 +68,7 @@ func main() {
 			continue
 		}
 
-		go handleConnection(conn, msgchan, addchan, rmchan, server, areas)
+		go handleConnection(conn, msgchan, addchan, rmchan, server, roomsMap)
 	}
 }
 
@@ -94,7 +94,7 @@ func handleConnection(
 	defer c.Close()
 
 	log.Println("New connection open:", c.RemoteAddr())
-	io.WriteString(c, server.Config.Motd)
+	io.WriteString(c, welcomePage)
 
 	var nickname string
 	questions := 0
@@ -104,11 +104,11 @@ func handleConnection(
 			return
 		}
 
-		nickname = promptMessage(c, bufc, "Whats your Nick?\n\r  ")
+		nickname = promptMessage(c, bufc, "Whats your Nick?\n")
 		isValidName := server.IsValidUsername(nickname)
 		if !isValidName {
 			questions++
-			io.WriteString(c, fmt.Sprintf("Username %s is not valid (0-9a-z_-).\n\r", nickname))
+			io.WriteString(c, fmt.Sprintf("Username %s is not valid (0-9a-z_-).\n", nickname))
 			continue
 		}
 
@@ -122,7 +122,7 @@ func handleConnection(
 		}
 
 		questions++
-		io.WriteString(c, fmt.Sprintf("Username %s does not exists.\n\r", nickname))
+		io.WriteString(c, fmt.Sprintf("Username %s does not exists.\n", nickname))
 		answer := promptMessage(c, bufc, "Do you want to create that user? [y|n] ")
 
 		if answer == "y" || answer == "yes" {
@@ -151,11 +151,11 @@ func handleConnection(
 	// Register user
 	addchan <- client
 	defer func() {
-		msgchan <- fmt.Sprintf("User %s left the chat room.\n\r", client.Nickname)
+		msgchan <- fmt.Sprintf("User %s left the chat room.\n", client.Nickname)
 		log.Printf("Connection from %v closed.\n", c.RemoteAddr())
 		rmchan <- client
 	}()
-	io.WriteString(c, fmt.Sprintf("Welcome, %s!\n\n\r", client.Player.Nickname))
+	io.WriteString(c, fmt.Sprintf("Welcome, %s!\n", client.Player.Nickname))
 	server.PlayerLoggedIn(client.Nickname)
 
 	// I/O

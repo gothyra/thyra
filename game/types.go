@@ -1,31 +1,36 @@
 package game
 
+// Player holds all variables for a character.
+type Player struct {
+	Nickname string `toml:"nickname"`
+	PC
+	Area     string `toml:"area"`
+	Room     string `toml:"room"`
+	Position string `toml:"position"`
+}
+
 type Area struct {
-	Key   string `xml:"key,attr"`
-	Tag   string `xml:"tag,attr"`
-	Name  string `xml:"name"`
-	Intro string `xml:"intro"`
-	Rooms []Room `xml:"rooms>room"`
+	Name  string          `toml:"name"`
+	Intro string          `toml:"intro"`
+	Rooms map[string]Room `toml:"rooms"`
 }
 
 type Room struct {
-	ID          string `xml:"id,attr"`
-	Name        string `xml:"name,attr"`
-	Description string `xml:"description,attr"`
-	Cubes       []Cube `xml:"cubes>cube"`
+	Name        string `toml:"name"`
+	Description string `toml:"description"`
+	Cubes       []Cube `toml:"cubes"`
 }
 
-//TODO : Add Rooms in area file , Cubes must belong to a specific room, and many rooms belong to area.
 type Cube struct {
-	ID    string `xml:"id,attr"`
-	POSX  string `xml:"posx,attr"`
-	POSY  string `xml:"posy,attr"`
-	Exits []Exit `xml:"exit"`
+	ID    string `toml:"id"`
+	POSX  string `toml:"posx"`
+	POSY  string `toml:"posy"`
+	Exits []Exit `toml:"exits"`
 }
 
 type Exit struct {
-	ToArea   string `xml:"toarea,attr"`
-	ToRoomID string `xml:"toroomid,attr"`
-	ToCubeID string `xml:"tocubeid,attr"`
-	FromExit string `xml:"fromexit,attr"`
+	ToArea   string `toml:"toarea"`
+	ToRoom   string `toml:"toroom"`
+	ToCubeID string `toml:"tocubeid"`
+	FromExit string `toml:"fromexit"`
 }
