@@ -2,7 +2,6 @@ package game
 
 import (
 	"bytes"
-	"encoding/xml"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,11 +12,14 @@ import (
 	"regexp"
 	"strconv"
 	"sync"
+
+	"github.com/gothyra/toml"
 )
 
-type ServerConfig struct {
-	Name string `xml:"name"`
-	Motd string `xml:"motd"`
+type Config struct {
+	host      string
+	port      int
+	staticDir string
 }
 
 type Server struct {
@@ -25,7 +27,7 @@ type Server struct {
 	Areas         map[string]Area
 	staticDir     string
 	DefaultArea   Area
-	Config        ServerConfig
+	Config        Config
 	onlineLock    sync.RWMutex
 	onlinePlayers map[string]struct{}
 }
@@ -42,17 +44,17 @@ func NewServer(staticDir string) *Server {
 func (s *Server) LoadConfig() error {
 	log.Println("Loading config ...")
 
-	configFileName := filepath.Join(s.staticDir, "/server.xml")
+	configFileName := filepath.Join(s.staticDir, "/server.toml")
 	fileContent, fileIoErr := ioutil.ReadFile(configFileName)
 	if fileIoErr != nil {
 		log.Printf("%s could not be loaded: %v\n", configFileName, fileIoErr)
 		return fileIoErr
 	}
 
-	config := ServerConfig{}
-	if xmlerr := xml.Unmarshal(fileContent, &config); xmlerr != nil {
-		log.Printf("%s could not be unmarshaled: %v\n", configFileName, xmlerr)
-		return xmlerr
+	config := Config{}
+	if _, err := toml.Decode(string(fileContent), &config); err != nil {
+		log.Printf("%s could not be unmarshaled: %v\n", configFileName, err)
+		return err
 	}
 
 	s.Config = config
@@ -74,12 +76,12 @@ func (s *Server) LoadAreas() error {
 		}
 
 		area := Area{}
-		if err := xml.Unmarshal(fileContent, &area); err != nil {
+		if _, err := toml.Decode(string(fileContent), &area); err != nil {
 			log.Printf("%s could not be unmarshaled: %v\n", path, err)
 			return err
 		}
 
-		log.Printf("Loaded area %q\n", info.Name())
+		log.Printf("Loaded area %q\n", area.Name)
 		s.addArea(area)
 
 		return nil
@@ -88,11 +90,15 @@ func (s *Server) LoadAreas() error {
 	return filepath.Walk(s.staticDir+"/areas/", areaWalker)
 }
 
+func (s *Server) addArea(area Area) {
+	s.Areas[area.Name] = area
+}
+
 func (s *Server) getPlayerFileName(playerName string) (bool, string) {
 	if !s.IsValidUsername(playerName) {
 		return false, ""
 	}
-	return true, s.staticDir + "/player/" + playerName + ".player"
+	return true, s.staticDir + "/player/" + playerName + ".toml"
 }
 
 func (s *Server) IsValidUsername(playerName string) bool {
@@ -114,7 +120,6 @@ func (s *Server) LoadPlayer(playerName string) (bool, error) {
 	if _, err := os.Stat(playerFileName); err != nil {
 		return false, nil
 	}
-	log.Printf("Loading player %q\n", playerFileName)
 
 	fileContent, fileIoErr := ioutil.ReadFile(playerFileName)
 	if fileIoErr != nil {
@@ -123,9 +128,9 @@ func (s *Server) LoadPlayer(playerName string) (bool, error) {
 	}
 
 	player := Player{}
-	if xmlerr := xml.Unmarshal(fileContent, &player); xmlerr != nil {
-		log.Printf("%s could not be unmarshaled: %v\n", playerFileName, xmlerr)
-		return true, xmlerr
+	if _, err := toml.Decode(string(fileContent), &player); err != nil {
+		log.Printf("%s could not be unmarshaled: %v\n", playerFileName, err)
+		return true, err
 	}
 
 	log.Printf("Loaded player %q\n", player.Nickname)
@@ -159,22 +164,24 @@ func (s *Server) CreatePlayer(nick string) {
 	player := Player{
 		Nickname: nick,
 		PC:       *NewPC(),
-
-		Position: strconv.Itoa(1),
 		Area:     "City",
+		Room:     "Inn",
+		Position: "1",
 	}
 	s.addPlayer(player)
 }
 
 func (s *Server) SavePlayer(player Player) bool {
-	data, err := xml.MarshalIndent(player, "", "    ")
+	data := &bytes.Buffer{}
+	encoder := toml.NewEncoder(data)
+	err := encoder.Encode(player)
 	if err == nil {
 		ok, playerFileName := s.getPlayerFileName(player.Nickname)
 		if !ok {
 			return false
 		}
 
-		if ioerror := ioutil.WriteFile(playerFileName, data, 0666); ioerror != nil {
+		if ioerror := ioutil.WriteFile(playerFileName, data.Bytes(), 0644); ioerror != nil {
 			log.Println(ioerror)
 			return true
 		}
@@ -226,15 +233,6 @@ func (s *Server) MapList() []string {
 	return maplist
 }
 
-func (s *Server) addArea(area Area) error {
-	if area.Tag == "default" {
-		log.Printf("default area loaded: %s\n", area.Key)
-		s.DefaultArea = area
-	}
-	s.Areas[area.Key] = area
-	return nil
-}
-
 func (s *Server) WriteLinesFrom(conn net.Conn, ch <-chan string) {
 	for msg := range ch {
 		_, err := io.WriteString(conn, msg)
@@ -244,29 +242,27 @@ func (s *Server) WriteLinesFrom(conn net.Conn, ch <-chan string) {
 	}
 }
 
-func (s *Server) CreateRoom(areaID string, roomID string) [][]int {
+func (s *Server) CreateRoom(area, room string) [][]int {
 
 	biggestx := 0
 	biggesty := 0
 	biggest := 0
 
-	areaCubes := []Cube{}
-	for i := range s.Areas[areaID].Rooms {
-
-		if s.Areas[areaID].Rooms[i].ID == roomID {
-			areaCubes = s.Areas[areaID].Rooms[i].Cubes
+	roomCubes := []Cube{}
+	for i := range s.Areas[area].Rooms {
+		if s.Areas[area].Rooms[i].Name == room {
+			roomCubes = s.Areas[area].Rooms[i].Cubes
 			break
 		}
-
 	}
 
-	for nick := range areaCubes {
-		posx, _ := strconv.Atoi(areaCubes[nick].POSX)
+	for nick := range roomCubes {
+		posx, _ := strconv.Atoi(roomCubes[nick].POSX)
 		if posx > biggestx {
 			biggestx = posx
 		}
 
-		posy, _ := strconv.Atoi(areaCubes[nick].POSY)
+		posy, _ := strconv.Atoi(roomCubes[nick].POSY)
 		if posy > biggesty {
 			biggesty = posy
 		}
@@ -285,85 +281,84 @@ func (s *Server) CreateRoom(areaID string, roomID string) [][]int {
 		maparray[i] = make([]int, biggest)
 	}
 
-	for z := range areaCubes {
-		posx, _ := strconv.Atoi(areaCubes[z].POSX)
-		posy, _ := strconv.Atoi(areaCubes[z].POSY)
-		if areaCubes[z].ID != "" {
-			id, _ := strconv.Atoi(areaCubes[z].ID)
+	for z := range roomCubes {
+		posx, _ := strconv.Atoi(roomCubes[z].POSX)
+		posy, _ := strconv.Atoi(roomCubes[z].POSY)
+		if roomCubes[z].ID != "" {
+			id, _ := strconv.Atoi(roomCubes[z].ID)
 			maparray[posx][posy] = id
 		}
-
 	}
 
 	return maparray
 }
 
 func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map[string][][]int) {
-	map_array := roomsMap[c.Player.Area][c.Player.RoomID]
+	map_array := roomsMap[c.Player.Area][c.Player.Room]
 
 	switch command {
 	case "l", "look", "map":
-		posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
-		printToUser(s, c, map_array, posarray, c.Player.Area)
+		posarray := s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+		printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 
 	case "e", "east":
-		newpos, _ := strconv.Atoi(s.FindExits(map_array, c, c.Player.Position, c.Player.Area)[0][1])
-		posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
+		newpos, _ := strconv.Atoi(s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[0][1])
+		posarray := s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 		if newpos > 0 {
 
 			c.Player.Position = strconv.Itoa(newpos)
 			c.Player.Area = posarray[0][0]
-			c.Player.RoomID = posarray[0][2]
-			map_array := roomsMap[c.Player.Area][c.Player.RoomID]
+			c.Player.Room = posarray[0][2]
+			map_array := roomsMap[c.Player.Area][c.Player.Room]
 
-			posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
-			printToUser(s, c, map_array, posarray, c.Player.Area)
+			posarray := s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 		} else {
 			c.WriteToUser("You can't go that way\n")
 		}
 
 	case "w", "west":
-		newpos, _ := strconv.Atoi(s.FindExits(map_array, c, c.Player.Position, c.Player.Area)[1][1])
-		posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
+		newpos, _ := strconv.Atoi(s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[1][1])
+		posarray := s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 		if newpos > 0 {
 
 			c.Player.Position = strconv.Itoa(newpos)
 			c.Player.Area = posarray[1][0]
-			c.Player.RoomID = posarray[1][2]
-			map_array := roomsMap[c.Player.Area][c.Player.RoomID]
-			posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
-			printToUser(s, c, map_array, posarray, c.Player.Area)
+			c.Player.Room = posarray[1][2]
+			map_array := roomsMap[c.Player.Area][c.Player.Room]
+			posarray := s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 		} else {
 			c.WriteToUser("You can't go that way\n")
 		}
 
 	case "n", "north":
-		newpos, _ := strconv.Atoi(s.FindExits(map_array, c, c.Player.Position, c.Player.Area)[2][1])
-		posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
+		newpos, _ := strconv.Atoi(s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[2][1])
+		posarray := s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 		if newpos > 0 {
 
 			c.Player.Position = strconv.Itoa(newpos)
 			c.Player.Area = posarray[2][0]
-			c.Player.RoomID = posarray[2][2]
-			map_array := roomsMap[c.Player.Area][c.Player.RoomID]
-			posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
-			printToUser(s, c, map_array, posarray, c.Player.Area)
+			c.Player.Room = posarray[2][2]
+			map_array := roomsMap[c.Player.Area][c.Player.Room]
+			posarray := s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 
 		} else {
 			c.WriteToUser("You can't go that way\n")
 		}
 
 	case "s", "south":
-		newpos, _ := strconv.Atoi(s.FindExits(map_array, c, c.Player.Position, c.Player.Area)[3][1])
-		posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
+		newpos, _ := strconv.Atoi(s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[3][1])
+		posarray := s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 		if newpos > 0 {
 
 			c.Player.Position = strconv.Itoa(newpos)
 			c.Player.Area = posarray[3][0]
-			c.Player.RoomID = posarray[3][2]
-			map_array := roomsMap[c.Player.Area][c.Player.RoomID]
-			posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
-			printToUser(s, c, map_array, posarray, c.Player.Area)
+			c.Player.Room = posarray[3][2]
+			map_array := roomsMap[c.Player.Area][c.Player.Room]
+			posarray := s.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 
 		} else {
 			c.WriteToUser("You can't go that way\n")
@@ -384,34 +379,33 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	default:
 		c.WriteLineToUser("Huh?")
 	}
-	c.WriteToUser("\n\n" + c.Player.Nickname + " : ")
+	c.WriteToUser("\n" + c.Player.Nickname + ": ")
 }
 
-//Briskei ta exits analoga me to position tou user, default possition otan kanei register einai 1
-func (server *Server) FindExits(s [][]int, c Client, pos string, area string) [][]string {
-	intpos, _ := strconv.Atoi(pos) //to exw balei etsi prwsorina.
-	exitarr := [][]string{}        // 2d array s   ,einai o xartis.
-
-	east := []string{area, "0", c.Player.RoomID}
-	west := []string{area, "0", c.Player.RoomID}
-	north := []string{area, "0", c.Player.RoomID}
-	south := []string{area, "0", c.Player.RoomID}
+// Briskei ta exits analoga me to position tou user, default possition otan kanei register einai 1
+func (server *Server) FindExits(s [][]int, area, room, pos string) [][]string {
+	playerPosition, _ := strconv.Atoi(pos) //to exw balei etsi prwsorina.
+	exitarr := [][]string{}                // 2d array s   ,einai o xartis.
+	east := []string{area, "0", room}
+	west := []string{area, "0", room}
+	north := []string{area, "0", room}
+	south := []string{area, "0", room}
 
 	exitarr = append(exitarr, east)
 	exitarr = append(exitarr, west)
 	exitarr = append(exitarr, north)
 	exitarr = append(exitarr, south)
 
-	roomCubes := server.Areas[area].Rooms[0].Cubes
-	for i := range server.Areas[area].Rooms {
-		if server.Areas[area].Rooms[i].ID == c.Player.RoomID {
-			roomCubes = server.Areas[area].Rooms[i].Cubes
+	roomCubes := server.Areas[area].Rooms[room].Cubes
+	for areaName, area := range server.Areas {
+		for roomName, room := range area.Rooms {
+			fmt.Println(areaName, roomName, room.Cubes)
 		}
 	}
 
 	for x := 0; x < len(s); x++ {
 		for y := 0; y < len(s); y++ {
-			if s[x][y] == intpos {
+			if s[x][y] == playerPosition {
 
 				if x < len(s)-1 && s[x+1][y] > 0 {
 					exitarr[0][1] = strconv.Itoa((s[x+1][y])) //EAST
@@ -432,50 +426,49 @@ func (server *Server) FindExits(s [][]int, c Client, pos string, area string) []
 
 	//Finding Exits that belongs to different area or room.
 	for i := range roomCubes {
-
-		if roomCubes[i].ID == pos && roomCubes[i].Exits != nil {
-
+		if roomCubes[i].ID == pos {
 			for z := range roomCubes[i].Exits {
-				if roomCubes[i].Exits[z].ToCubeId == "" {
+				if roomCubes[i].Exits[z].ToCubeID == "" {
 					continue
 				}
 
 				switch roomCubes[i].Exits[z].FromExit {
-				case "EAST":
+				case "East":
 					exitarr[0][0] = roomCubes[i].Exits[z].ToArea
 					exitarr[0][1] = roomCubes[i].Exits[z].ToCubeID
-					exitarr[0][2] = roomCubes[i].Exits[z].ToRoomID
+					exitarr[0][2] = roomCubes[i].Exits[z].ToRoom
 
-				case "WEST":
+				case "West":
 					exitarr[1][0] = roomCubes[i].Exits[z].ToArea
 					exitarr[1][1] = roomCubes[i].Exits[z].ToCubeID
-					exitarr[1][2] = roomCubes[i].Exits[z].ToRoomID
+					exitarr[1][2] = roomCubes[i].Exits[z].ToRoom
 
-				case "NORTH":
+				case "North":
 					exitarr[2][0] = roomCubes[i].Exits[z].ToArea
 					exitarr[2][1] = roomCubes[i].Exits[z].ToCubeID
-					exitarr[2][2] = roomCubes[i].Exits[z].ToRoomID
+					exitarr[2][2] = roomCubes[i].Exits[z].ToRoom
 
-				case "SOUTH":
+				case "South":
 					exitarr[3][0] = roomCubes[i].Exits[z].ToArea
 					exitarr[3][1] = roomCubes[i].Exits[z].ToCubeID
-					exitarr[3][2] = roomCubes[i].Exits[z].ToRoomID
+					exitarr[3][2] = roomCubes[i].Exits[z].ToRoom
 				}
 			}
 		}
 	}
 
-	c.WriteToUser("\n")
+	// First field denotes direction:
+	// [0] East, [1] West, [2] North, [3] South
+	// Second array holds the cube we will end up following the direction
+	// [][0] ToArea, [][1] ToCubeID, [][2] ToRoom
 
-	// return 2d string , morfi [0][0] Area , [0][1] Cubeid [0][2] Roomid
-	// [0] East , [1] West , [2] North ,[3] South
-	// TODO: make cube have multiple exits.now cube can lead only from 1 exit to different area-roomid.
 	return exitarr
 }
 
 func printExits(c Client, exit_array [][]string) bytes.Buffer { //Print exits,From returned [5]string findExits
 
 	var buffer bytes.Buffer
+
 	buffer.WriteString("Exits  : [ ")
 
 	if exit_array[0][1] != "0" {
@@ -525,21 +518,21 @@ func updateMap(server *Server, c Client, pos string, s [][]int, posarray [][]str
 	return buffer
 }
 
-func printIntro(s *Server, c Client, area string) bytes.Buffer { // Print to intro tis area
+func printIntro(s *Server, c Client, areaID, room string) bytes.Buffer { // Print to intro tis area
 
 	var buffer bytes.Buffer
 
-	areaIntro := s.Areas[area].Rooms[0].Description
+	areaIntro := s.Areas[areaID].Rooms[room].Description
 	buffer.WriteString(areaIntro)
 
 	return buffer
 }
 
-func printToUser(s *Server, c Client, map_array [][]int, posarray [][]string, areaname string) {
+func printToUser(s *Server, c Client, map_array [][]int, posarray [][]string, areaID, room string) {
 
 	buffexits := printExits(c, posarray)
 	buff := updateMap(s, c, c.Player.Position, map_array, posarray)
-	buffintro := printIntro(s, c, areaname)
+	buffintro := printIntro(s, c, areaID, room)
 
 	c.WriteToUser(buffintro.String() + "\n\n" + buffexits.String() + "\n\n" + buff.String())
 
