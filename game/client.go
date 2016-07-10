@@ -59,9 +59,7 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 		}
 
 		log.Printf("Command by %s: %s  -  %s", c.Player.Nickname, command, commandText)
-
-		mapname := "City"
-
+		mapname := c.Player.Area
 		map_array := populate_maparray(server, mapname)
 
 		printIntro(server, c, mapname)
@@ -69,9 +67,7 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 		switch command {
 		case "look":
 			fallthrough
-		case "watch":
 		case "map":
-
 			findExits(map_array, c, c.Player.Position)
 			printExits(map_array, c, c.Player.Position)
 			updateMap(c, c.Player.Position, map_array)
@@ -89,7 +85,7 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 				findExits(map_array, c, c.Player.Position)
 				printExits(map_array, c, c.Player.Position)
 			} else {
-				c.WriteToUser("\t\t\t\t\tYou can't go that way\n")
+				c.WriteToUser("You can't go that way\n")
 			}
 		case "w":
 			fallthrough
@@ -164,7 +160,7 @@ func findExits(s [][]int, c Client, pos string) [4]int { //Briskei ta exits anal
 		for y := 0; y < len(s); y++ { // Kanei return ena array [4]int me ta exits se morfi  {EAST , WEST , NORTH , SOUTH}
 			if s[x][y] == intpos { //P.X an kanei return  {50,0,40,0} simainei oti apo to possition pou eisai exei exits EAST kai NORTH
 				// EAST se paei sto cube me ID 50 kai NORTH se paei sto cube me ID 40
-				fmt.Printf("Possition in array :x:%d,y:%d\n", x, y)
+
 				if x < len(s)-1 && s[x+1][y] > 0 {
 					exitarr[0] = s[x+1][y]
 				}
@@ -182,7 +178,6 @@ func findExits(s [][]int, c Client, pos string) [4]int { //Briskei ta exits anal
 		}
 	}
 	c.WriteToUser("\n")
-	fmt.Printf("%v\n", exitarr)
 	return exitarr
 }
 
@@ -192,7 +187,6 @@ func printExits(s [][]int, c Client, pos string) { //akribws idio func me to fin
 	for x := 0; x < len(s); x++ {
 		for y := 0; y < len(s); y++ {
 			if s[x][y] == intpos {
-				fmt.Printf("Possition in array :x:%d,y:%d", x, y)
 				if x < len(s)-1 && s[x+1][y] > 0 {
 					c.WriteToUser("East ")
 				}
@@ -231,7 +225,6 @@ func populate_maparray(s *Server, area string) [][]int {
 		}
 
 	}
-	fmt.Printf("BiggestX:%d  BiggestY:%d\n", biggestx, biggesty)
 	if biggestx > biggesty {
 		biggest = biggestx
 	}
@@ -251,7 +244,6 @@ func populate_maparray(s *Server, area string) [][]int {
 		maparray = append(maparray, tmp)
 
 	}
-	fmt.Printf("Len(s) : %d\n", len(maparray))
 	for z := range areaCubes {
 		posx, _ := strconv.Atoi(areaCubes[z].POSX)
 		posy, _ := strconv.Atoi(areaCubes[z].POSY)
@@ -259,7 +251,7 @@ func populate_maparray(s *Server, area string) [][]int {
 			id, _ := strconv.Atoi(areaCubes[z].ID)
 			maparray[posx][posy] = id
 		}
-		fmt.Printf("Z=%d  --> s[%d,%d] = %d \n", z, posx, posy, maparray[posx][posy])
+
 	}
 
 	return maparray
