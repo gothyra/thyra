@@ -7,26 +7,34 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gothyra/thyra/game"
 )
 
 func main() {
-	workingdir, _ := os.Getwd()
+	staticDir := os.Getenv("THYRA_STATIC")
+	if len(staticDir) == 0 {
+		pwd, _ := os.Getwd()
+		staticDir = filepath.Join(pwd, "static")
+		log.Println("Set THYRA_STATIC if you wish to configure the directory for static content")
+	}
+	log.Printf("Using %s for static content\n", staticDir)
 
-	log.Printf("Leveldir %s", workingdir+"/static/levels/")
+	server := game.NewServer(staticDir)
 
-	server := game.NewServer(workingdir)
-	err := server.LoadLevels()
-	if err != nil {
-		fmt.Println(err)
+	if err := server.LoadConfig(); err != nil {
+		os.Exit(1)
+	}
+
+	if err := server.LoadLevels(); err != nil {
 		os.Exit(1)
 	}
 
 	ln, err := net.Listen("tcp", server.Config.Interface)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err.Error())
 		os.Exit(1)
 	}
 
@@ -82,21 +90,21 @@ func handleConnection(c net.Conn, msgchan chan<- string, addchan chan<- game.Cli
 			continue
 		}
 
-		ok := server.LoadPlayer(nickname)
-
-		if ok == false {
-			questions++
-			io.WriteString(c, fmt.Sprintf("Username %s does not exists.\n\r", nickname))
-			answer := promptMessage(c, bufc, "Do you want to create that user? [y|n] ")
-
-			if answer == "y" {
-				server.CreatePlayer(nickname)
-
-				break
-			}
+		exists, err := server.LoadPlayer(nickname)
+		if err != nil {
+			io.WriteString(c, fmt.Sprintf("%s\n\r", err.Error()))
+			return
+		}
+		if exists {
+			break
 		}
 
-		if ok == true {
+		questions++
+		io.WriteString(c, fmt.Sprintf("Username %s does not exists.\n\r", nickname))
+		answer := promptMessage(c, bufc, "Do you want to create that user? [y|n] ")
+
+		if answer == "y" || answer == "yes" {
+			server.CreatePlayer(nickname)
 			break
 		}
 	}
