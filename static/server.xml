@@ -1,6 +1,5 @@
 <server>
     <name>THYRA</name>
-    <interface>:4000</interface>
     <motd><![CDATA[
                           /\
                                       /`:\

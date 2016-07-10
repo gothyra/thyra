@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -14,6 +15,7 @@ import (
 )
 
 func main() {
+	// Environment variables
 	staticDir := os.Getenv("THYRA_STATIC")
 	if len(staticDir) == 0 {
 		pwd, _ := os.Getwd()
@@ -22,6 +24,11 @@ func main() {
 	}
 	log.Printf("Using %s for static content\n", staticDir)
 
+	// Flags
+	port := flag.Int64("port", 4000, "Port to listen on incoming connections")
+	flag.Parse()
+
+	// Setup and start the server
 	server := game.NewServer(staticDir)
 
 	if err := server.LoadConfig(); err != nil {
@@ -32,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ln, err := net.Listen("tcp", server.Config.Interface)
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		log.Println(err.Error())
 		os.Exit(1)
