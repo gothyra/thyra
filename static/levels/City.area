@@ -2,7 +2,13 @@
     <name>City Area</name>
     <intro>This looks like a nice little electronics lab, maybe solder something.</intro>
  
-  
+  <rooms>
+ 
+    <room id="1" name="Inn" 
+        description="The inn is a two-storey stone-walled building, with a small walled yard and garden. It is fancifully decorated, and brightly lit by glowing gemstones set into the ceiling. Accomodations consist of several small rooms with beds and woolen mattresses."
+        maxx="1"
+        maxy="5">
+
     <cubes>
     
      <cube id="1"  posx="0" posy="0"  toarea="Limbo" toid="1" fromexit="WEST" />
@@ -88,11 +94,10 @@
     <cube id="72"  posx="11" posy="7" />
     <cube id="73"  posx="12" posy="7" />
 
- 
     
-
-      
-
-
         </cubes>
+</room>
+</rooms>
+
+
 </station>

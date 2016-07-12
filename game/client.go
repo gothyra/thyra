@@ -185,7 +185,7 @@ func findExits(server *Server, s [][]int, c Client, pos string, area string) [][
 	exitarr = append(exitarr, north)
 	exitarr = append(exitarr, south)
 
-	areaCubes := server.levels[area].Cubes
+	areaCubes := server.levels[area].Rooms[0].Cubes
 
 	for x := 0; x < len(s); x++ {
 		for y := 0; y < len(s); y++ { // Kanei return ena array [4]int me ta exits se morfi  {EAST , WEST , NORTH , SOUTH}
@@ -266,12 +266,13 @@ func printExits(c Client, exit_array [][]string) bytes.Buffer { //Print exits,Fr
 }
 
 func populate_maparray(s *Server, area string) [][]int {
+
 	biggestx := 0
 	biggesty := 0
 	biggest := 0
-	areaCubes := s.levels[area].Cubes
+	areaCubes := s.levels[area].Rooms[0].Cubes
 
-	for nick := range s.levels[area].Cubes {
+	for nick := range areaCubes {
 		posx, _ := strconv.Atoi(areaCubes[nick].POSX)
 		if posx > biggestx {
 			biggestx = posx
@@ -291,6 +292,7 @@ func populate_maparray(s *Server, area string) [][]int {
 	} else {
 		biggest = biggestx
 	}
+
 	maparray := make([][]int, 0)
 
 	for i := 0; i <= biggest; i++ {
@@ -348,7 +350,7 @@ func printIntro(s *Server, c Client, area string) bytes.Buffer { // Print to int
 
 	var buffer bytes.Buffer
 
-	areaIntro := s.levels[area].Intro
+	areaIntro := s.levels[area].Rooms[0].Description
 	buffer.WriteString(areaIntro)
 
 	return buffer
