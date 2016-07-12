@@ -7,8 +7,7 @@
      <cube id="2"  posx="0" posy="1" />
      <cube id="5"  posx="0" posy="4" />
      <cube id="6"  posx="1" posy="0" />
-     <cube id="7"  posx="1" posy="1" />
-     <cube id="10" posx="1" posy="4" />
+
 </cubes>
  
  
