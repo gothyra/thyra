@@ -11,7 +11,7 @@
 
     <cubes>
     
-     <cube id="1"  posx="0" posy="0"  toarea="Limbo" toid="1" fromexit="WEST" />
+     <cube id="1"  posx="0" posy="0"  toarea="City" toroomid="2" tocubeid="1" fromexit="WEST" />
      <cube id="2"  posx="0" posy="1" />
 
      <cube id="5"  posx="0" posy="4" />
@@ -97,6 +97,29 @@
     
         </cubes>
 </room>
+
+<room id="2" name="Market" 
+        description="In a market quarter, surrounded by shadowed alleys and colorful marketplaces. The street outside is filled with the scent of damp earth."
+        maxx="1"
+        maxy="5">
+
+
+    <cubes>
+      <cube id="1"  posx="0" posy="0"  toarea="City" toroomid="1" tocubeid="1" fromexit="EAST" />
+    <cube id="2"  posx="0" posy="1"/>
+    <cube id="3"  posx="0" posy="2"/>
+    <cube id="4"  posx="0" posy="3"/>
+    <cube id="5"  posx="0" posy="4"/>
+    </cubes>
+
+  </room>
+
+
+
+
+
+
+
 </rooms>
 
 

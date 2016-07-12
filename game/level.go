@@ -23,6 +23,7 @@ type Cube struct {
 	POSX     string `xml:"posx,attr"`
 	POSY     string `xml:"posy,attr"`
 	ToArea   string `xml:"toarea,attr"`
-	ToId     string `xml:"toid,attr"`
+	ToRoomId string `xml:"toroomid,attr"`
+	ToCubeId string `xml:"tocubeid,attr"`
 	FromExit string `xml:"fromexit,attr"`
 }
