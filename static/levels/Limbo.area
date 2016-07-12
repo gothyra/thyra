@@ -1,23 +1,28 @@
 <station key="Limbo">
     <name>Limbo !!!</name>
-    <intro>You see , you feel ,you hear NOTHING !!!!</intro>
  
+ <rooms> 
   
+ 	<room id="1" name="Inn" 
+ 		description="In a market quarter, surrounded by shadowed alleys and colorful marketplaces. The street outside is filled with the scent of damp earth."
+		maxx="1"
+		maxy="5">
+
+
     <cubes>
-   
-     <cube id="1"  posx="0" posy="0" toarea="City" toid="1" fromexit="EAST"/>
+    <cube id="1"  posx="0" posy="0" toarea="City" toid="1" fromexit="EAST"/>
+	<cube id="2"  posx="0" posy="1"/>
+	<cube id="3"  posx="0" posy="2"/>
+	<cube id="4"  posx="0" posy="3"/>
+	<cube id="5"  posx="0" posy="4"/>
+	</cubes>
+
+  </room>
 
 
 
-<cube id="2"  posx="0" posy="1"/>
-<cube id="3"  posx="0" posy="2"/>
-<cube id="4"  posx="0" posy="3"/>
-<cube id="5"  posx="0" posy="4"/>
-
-
- 
 
 
 
-</cubes>
+</rooms>
 </station>
