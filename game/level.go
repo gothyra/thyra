@@ -8,8 +8,12 @@ type Level struct {
 	Cubes []Cube `xml:"cubes>cube"`
 }
 
+//TODO : Add Rooms in area file , Cubes must belong to a specific room, and many rooms belong to area.
 type Cube struct {
-	ID   string `xml:"id,attr"`
-	POSX string `xml:"posx,attr"`
-	POSY string `xml:"posy,attr"`
+	ID       string `xml:"id,attr"`
+	POSX     string `xml:"posx,attr"`
+	POSY     string `xml:"posy,attr"`
+	ToArea   string `xml:"toarea,attr"`
+	ToId     string `xml:"toid,attr"`
+	FromExit string `xml:"fromexit,attr"`
 }
