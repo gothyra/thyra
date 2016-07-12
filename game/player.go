@@ -7,12 +7,12 @@ import (
 
 // Player holds all variables for a character.
 type Player struct {
-	XMLName  xml.Name `xml:"player"`
-	Nickname string   `xml:"nickname,attr"`
-	Gamename string   `xml:"name"`
-	Position string   `xml:"position,attr"`
-	Area     string   `xml:"area,attr"`
-
+	XMLName    xml.Name    `xml:"player"`
+	Nickname   string      `xml:"nickname,attr"`
+	Gamename   string      `xml:"name"`
+	Position   string      `xml:"position,attr"`
+	Area       string      `xml:"area,attr"`
+	RoomId     string      `xml:"roomid,attr"`
 	PlayerType string      `xml:"type"`
 	Ch         chan string `xml:"-"`
 	ActionLog  []string    `xml:"actions>action"`

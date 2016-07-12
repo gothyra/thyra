@@ -1,6 +1,6 @@
 <station key="Limbo">
     <name>Limbo !!!</name>
- 
+     <intro>This looks like a nice little electronics lab, maybe solder something.</intro>
  <rooms> 
   
  	<room id="1" name="Inn" 
