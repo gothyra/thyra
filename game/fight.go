@@ -6,6 +6,7 @@ package game
 import (
 	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -155,7 +156,7 @@ func calcHP(class string, level int) int { // Εχει και προβλεψη �
 	}
 	return HP
 }
-func fight(comb1 *PC, comb2 *PC) { // Μεθοδος μαχης. Πρωτα βαραει ο comb1 και μετα ο comb2. Το initiative καθοριζεται στην main()
+func fight(c Client, comb1 *PC, comb2 *PC) { // Μεθοδος μαχης. Πρωτα βαραει ο comb1 και μετα ο comb2. Το initiative καθοριζεται στην main()
 	// δοκιμασα "for comb1.HP > 0 || comb2.HP > 0 {" και κανει οτι να'ναι. Γιατι; Για τωρα δουλευει με αρχικο check των hit points
 	// σε ατερμονα βρογχο
 	for {
@@ -166,19 +167,22 @@ func fight(comb1 *PC, comb2 *PC) { // Μεθοδος μαχης. Πρωτα βα
 			hit := random(1, comb1.weapondie)
 			comb2.HP -= hit
 			descrip := random(1, 4)
+
+			strhit := strconv.Itoa(hit)
+
 			switch descrip {
 			case 1:
-				fmt.Println("Player 2 was hit for", hit, "points of damage")
+				c.WriteLineToUser("Player 2 was hit for " + strhit + " points of damage")
 			case 2:
-				fmt.Println("Player 2 was too slow, punished for", hit, "points of damage")
+				c.WriteLineToUser("Player 2 was too slow, punished for " + strhit + " points of damage")
 			case 3:
-				fmt.Println("The evasion was worthless for Player 2, he suffered", hit, "points of damage")
+				c.WriteLineToUser("The evasion was worthless for Player 2, he suffered " + strhit + " points of damage")
 			case 4:
-				fmt.Println("If he brought a shield, Player 2 would avoid", hit, "points of damage")
+				c.WriteLineToUser("If he brought a shield, Player 2 would avoid " + strhit + " points of damage")
 			}
 
 		} else {
-			fmt.Println("Player 1 missed")
+			c.WriteLineToUser("Player 1 missed")
 		}
 		if comb2.HP < 0 {
 			break
@@ -187,31 +191,37 @@ func fight(comb1 *PC, comb2 *PC) { // Μεθοδος μαχης. Πρωτα βα
 			hit := random(1, comb2.weapondie)
 			comb1.HP -= hit
 			descrip := random(1, 4)
+
+			strhit := strconv.Itoa(hit)
+
 			switch descrip {
 			case 1:
-				fmt.Println("Player 1 was hit for", hit, "points of damage")
+				c.WriteLineToUser("Player 1 was hit for " + strhit + " points of damage")
 			case 2:
-				fmt.Println("Bad news Player 1, you were hit for", hit, "points of damage")
+				c.WriteLineToUser("Bad news Player 1, you were hit for " + strhit + " points of damage")
 			case 3:
-				fmt.Println("Player 1 surelly didn't expect to suffer", hit, "points of damage")
+				c.WriteLineToUser("Player 1 surelly didn't expect to suffer " + strhit + " points of damage")
 			case 4:
-				fmt.Println("Learn some parry next time Player 1, because you took", hit, "points of damage")
+				c.WriteLineToUser("Learn some parry next time Player 1, because you took " + strhit + " points of damage")
 			}
 		} else {
-			fmt.Println("Player 2 missed")
+			c.WriteLineToUser("Player 2 missed")
 		}
 	}
 	fmt.Println("--@@--@@--@@--@@--")
+
+	strhp1 := strconv.Itoa(comb1.HP)
+	strhp2 := strconv.Itoa(comb2.HP)
 	if comb1.HP > 0 {
-		fmt.Println("Player 1 won, he's at ", comb1.HP, "Hit Points, leaving his opponent at", comb2.HP)
+		c.WriteLineToUser("Player 1 won, he's at " + strhp1 + " Hit Points, leaving his opponent at " + strhp2)
 	} else {
-		fmt.Println("Player 2 won, he's at ", comb2.HP, "Hit Points, leaving his opponent at", comb1.HP)
+		c.WriteLineToUser("Player 2 won, he's at " + strhp2 + "Hit Points, leaving his opponent at " + strhp1)
 	}
 }
 
 //------Main code------
 
-func do_fight() {
+func do_fight(c Client) {
 	rand.Seed(time.Now().Unix())
 
 	// Setting up player 1
@@ -273,12 +283,11 @@ func do_fight() {
 	}
 	switch {
 	case player1.initiative > player2.initiative:
-		fight(player1, player2)
+		fight(c, player1, player2)
 	case player1.initiative < player2.initiative:
-		fight(player2, player1)
+		fight(c, player2, player1)
 	default:
 		fmt.Println("Problem!")
 	}
 
 }
-
