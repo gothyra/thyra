@@ -158,6 +158,8 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 			for _, nickname := range server.OnlinePlayers() {
 				c.WriteToUser(nickname + "\n")
 			}
+		case "fight":
+			do_fight(c)
 		default:
 			c.WriteLineToUser("Huh?")
 			continue
