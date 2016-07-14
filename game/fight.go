@@ -159,6 +159,7 @@ func calcHP(class string, level int) int { // Εχει και προβλεψη �
 func fight(c Client, comb1 *PC, comb2 *PC) { // Μεθοδος μαχης. Πρωτα βαραει ο comb1 και μετα ο comb2. Το initiative καθοριζεται στην main()
 	// δοκιμασα "for comb1.HP > 0 || comb2.HP > 0 {" και κανει οτι να'ναι. Γιατι; Για τωρα δουλευει με αρχικο check των hit points
 	// σε ατερμονα βρογχο
+	//Add c Client to output to user.
 	for {
 		if comb1.HP < 0 {
 			break
