@@ -61,7 +61,7 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 
 		log.Printf("Command by %s: %s  -  %s", c.Player.Nickname, command, commandText)
 
-		map_array := populate_maparray(server, c.Player.Area)
+		map_array := populate_maparray(server, c.Player.Area, c.Player.RoomId)
 
 		printIntro(server, c, c.Player.Area)
 
@@ -73,6 +73,7 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 		case "map":
 			posarray := findExits(server, map_array, c, c.Player.Position, c.Player.Area)
 			printToUser(server, c, map_array, posarray, c.Player.Area)
+			fmt.Println(posarray)
 		case "go":
 		case "exits":
 			posarray := findExits(server, map_array, c, c.Player.Position, c.Player.Area)
@@ -87,9 +88,11 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 
 				c.Player.Position = strconv.Itoa(newpos)
 				c.Player.Area = posarray[0][0]
-				map_array := populate_maparray(server, c.Player.Area)
+				c.Player.RoomId = posarray[0][2]
+				map_array := populate_maparray(server, c.Player.Area, c.Player.RoomId)
 				posarray := findExits(server, map_array, c, c.Player.Position, c.Player.Area)
 				printToUser(server, c, map_array, posarray, c.Player.Area)
+				fmt.Println(c.Player.Position, c.Player.Area, c.Player.RoomId)
 			} else {
 				c.WriteToUser("You can't go that way\n")
 			}
@@ -102,7 +105,8 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 
 				c.Player.Position = strconv.Itoa(newpos)
 				c.Player.Area = posarray[1][0]
-				map_array := populate_maparray(server, c.Player.Area)
+				c.Player.RoomId = posarray[1][2]
+				map_array := populate_maparray(server, c.Player.Area, c.Player.RoomId)
 				posarray := findExits(server, map_array, c, c.Player.Position, c.Player.Area)
 				printToUser(server, c, map_array, posarray, c.Player.Area)
 
@@ -118,7 +122,8 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 
 				c.Player.Position = strconv.Itoa(newpos)
 				c.Player.Area = posarray[2][0]
-				map_array := populate_maparray(server, c.Player.Area)
+				c.Player.RoomId = posarray[2][2]
+				map_array := populate_maparray(server, c.Player.Area, c.Player.RoomId)
 				posarray := findExits(server, map_array, c, c.Player.Position, c.Player.Area)
 				printToUser(server, c, map_array, posarray, c.Player.Area)
 
@@ -134,7 +139,8 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 
 				c.Player.Position = strconv.Itoa(newpos)
 				c.Player.Area = posarray[3][0]
-				map_array := populate_maparray(server, c.Player.Area)
+				c.Player.RoomId = posarray[3][2]
+				map_array := populate_maparray(server, c.Player.Area, c.Player.RoomId)
 				posarray := findExits(server, map_array, c, c.Player.Position, c.Player.Area)
 				printToUser(server, c, map_array, posarray, c.Player.Area)
 
@@ -152,6 +158,8 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 			for _, nickname := range server.OnlinePlayers() {
 				c.WriteToUser(nickname + "\n")
 			}
+		case "fight":
+			do_fight(c)
 		default:
 			c.WriteLineToUser("Huh?")
 			continue
@@ -175,22 +183,32 @@ func findExits(server *Server, s [][]int, c Client, pos string, area string) [][
 	intpos, _ := strconv.Atoi(pos) //to exw balei etsi prwsorina.
 	exitarr := [][]string{}        // 2d array s   ,einai o xartis.
 
-	east := []string{area, "0"}
-	west := []string{area, "0"}
-	north := []string{area, "0"}
-	south := []string{area, "0"}
+	east := []string{area, "0", c.Player.RoomId}
+	west := []string{area, "0", c.Player.RoomId}
+	north := []string{area, "0", c.Player.RoomId}
+	south := []string{area, "0", c.Player.RoomId}
 
 	exitarr = append(exitarr, east)
 	exitarr = append(exitarr, west)
 	exitarr = append(exitarr, north)
 	exitarr = append(exitarr, south)
 
-	areaCubes := server.levels[area].Cubes
+	fmt.Println("Before : ", exitarr)
+
+	areaCubes := server.levels[area].Rooms[0].Cubes
+
+	for i := range server.levels[area].Rooms {
+
+		if server.levels[area].Rooms[i].Id == c.Player.RoomId {
+			areaCubes = server.levels[area].Rooms[i].Cubes
+
+		}
+
+	}
 
 	for x := 0; x < len(s); x++ {
-		for y := 0; y < len(s); y++ { // Kanei return ena array [4]int me ta exits se morfi  {EAST , WEST , NORTH , SOUTH}
-			if s[x][y] == intpos { //P.X an kanei return  {50,0,40,0} simainei oti apo to possition pou eisai exei exits EAST kai NORTH
-				// EAST se paei sto cube me ID 50 kai NORTH se paei sto cube me ID 40
+		for y := 0; y < len(s); y++ {
+			if s[x][y] == intpos {
 
 				if x < len(s)-1 && s[x+1][y] > 0 {
 					exitarr[0][1] = strconv.Itoa((s[x+1][y])) //EAST
@@ -208,37 +226,46 @@ func findExits(server *Server, s [][]int, c Client, pos string, area string) [][
 
 		}
 	}
-	//Finding Exits that belongs to different area.
+	//Finding Exits that belongs to different area or room.
 	for i := range areaCubes {
 
 		if areaCubes[i].ID == pos {
-			if areaCubes[i].ToId != "" && areaCubes[i].FromExit == "EAST" {
-				exitarr[0][1] = areaCubes[i].ToId
+			if areaCubes[i].ToCubeId != "" && areaCubes[i].FromExit == "EAST" {
 				exitarr[0][0] = areaCubes[i].ToArea
+				exitarr[0][1] = areaCubes[i].ToCubeId
+				exitarr[0][2] = areaCubes[i].ToRoomId
 
 			}
 
-			if areaCubes[i].ToId != "" && areaCubes[i].FromExit == "WEST" {
-				exitarr[1][1] = areaCubes[i].ToId
+			if areaCubes[i].ToCubeId != "" && areaCubes[i].FromExit == "WEST" {
 				exitarr[1][0] = areaCubes[i].ToArea
+				exitarr[1][1] = areaCubes[i].ToCubeId
+				exitarr[1][2] = areaCubes[i].ToRoomId
 
 			}
 
-			if areaCubes[i].ToId != "" && areaCubes[i].FromExit == "NORTH" {
-				exitarr[2][1] = areaCubes[i].ToId
+			if areaCubes[i].ToCubeId != "" && areaCubes[i].FromExit == "NORTH" {
 				exitarr[2][0] = areaCubes[i].ToArea
+				exitarr[2][1] = areaCubes[i].ToCubeId
+				exitarr[2][2] = areaCubes[i].ToRoomId
 
 			}
 
-			if areaCubes[i].ToId != "" && areaCubes[i].FromExit == "SOUTH" {
-				exitarr[3][1] = areaCubes[i].ToId
+			if areaCubes[i].ToCubeId != "" && areaCubes[i].FromExit == "SOUTH" {
 				exitarr[3][0] = areaCubes[i].ToArea
+				exitarr[3][1] = areaCubes[i].ToCubeId
+				exitarr[3][2] = areaCubes[i].ToRoomId
 
 			}
 		}
 
 	}
 	c.WriteToUser("\n")
+	fmt.Println(exitarr)
+
+	// return 2d string , morfi [0][0] Area , [0][1] Cubeid [0][2] Roomid
+	// [0] East , [1] West , [2] North ,[3] South
+	//TODO : make cube have multiple exits.now cube can lead only from 1 exit to different area-roomid.
 	return exitarr
 }
 
@@ -265,13 +292,22 @@ func printExits(c Client, exit_array [][]string) bytes.Buffer { //Print exits,Fr
 
 }
 
-func populate_maparray(s *Server, area string) [][]int {
+func populate_maparray(s *Server, area string, roomid string) [][]int {
+
 	biggestx := 0
 	biggesty := 0
 	biggest := 0
-	areaCubes := s.levels[area].Cubes
 
-	for nick := range s.levels[area].Cubes {
+	areaCubes := s.levels[area].Rooms[0].Cubes
+	for i := range s.levels[area].Rooms {
+
+		if s.levels[area].Rooms[i].Id == roomid {
+			areaCubes = s.levels[area].Rooms[i].Cubes
+		}
+
+	}
+
+	for nick := range areaCubes {
 		posx, _ := strconv.Atoi(areaCubes[nick].POSX)
 		if posx > biggestx {
 			biggestx = posx
@@ -291,6 +327,7 @@ func populate_maparray(s *Server, area string) [][]int {
 	} else {
 		biggest = biggestx
 	}
+
 	maparray := make([][]int, 0)
 
 	for i := 0; i <= biggest; i++ {
@@ -348,7 +385,7 @@ func printIntro(s *Server, c Client, area string) bytes.Buffer { // Print to int
 
 	var buffer bytes.Buffer
 
-	areaIntro := s.levels[area].Intro
+	areaIntro := s.levels[area].Rooms[0].Description
 	buffer.WriteString(areaIntro)
 
 	return buffer
