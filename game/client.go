@@ -205,9 +205,8 @@ func findExits(server *Server, s [][]int, c Client, pos string, area string) [][
 	}
 
 	for x := 0; x < len(s); x++ {
-		for y := 0; y < len(s); y++ { // Kanei return ena array [4]int me ta exits se morfi  {EAST , WEST , NORTH , SOUTH}
-			if s[x][y] == intpos { //P.X an kanei return  {50,0,40,0} simainei oti apo to possition pou eisai exei exits EAST kai NORTH
-				// EAST se paei sto cube me ID 50 kai NORTH se paei sto cube me ID 40
+		for y := 0; y < len(s); y++ {
+			if s[x][y] == intpos {
 
 				if x < len(s)-1 && s[x+1][y] > 0 {
 					exitarr[0][1] = strconv.Itoa((s[x+1][y])) //EAST
@@ -225,7 +224,7 @@ func findExits(server *Server, s [][]int, c Client, pos string, area string) [][
 
 		}
 	}
-	//Finding Exits that belongs to different area.
+	//Finding Exits that belongs to different area or room.
 	for i := range areaCubes {
 
 		if areaCubes[i].ID == pos {
@@ -261,6 +260,10 @@ func findExits(server *Server, s [][]int, c Client, pos string, area string) [][
 	}
 	c.WriteToUser("\n")
 	fmt.Println(exitarr)
+
+	// return 2d string , morfi [0][0] Area , [0][1] Cubeid [0][2] Roomid
+	// [0] East , [1] West , [2] North ,[3] South
+	//TODO : make cube have multiple exits.now cube can lead only from 1 exit to different area-roomid
 	return exitarr
 }
 
