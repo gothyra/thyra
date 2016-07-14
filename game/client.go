@@ -263,7 +263,7 @@ func findExits(server *Server, s [][]int, c Client, pos string, area string) [][
 
 	// return 2d string , morfi [0][0] Area , [0][1] Cubeid [0][2] Roomid
 	// [0] East , [1] West , [2] North ,[3] South
-	//TODO : make cube have multiple exits.now cube can lead only from 1 exit to different area-roomid
+	//TODO : make cube have multiple exits.now cube can lead only from 1 exit to different area-roomid.
 	return exitarr
 }
 
