@@ -12,8 +12,22 @@ import (
 
 // ------------Standard values-----------
 type PC struct { //Τα στοιχεια του χαρακτήρα.
-	STR, DEX, CON, INT, WIS, CHA, BAB, AC, HP, HD, weapondie, initiative, level int
-	class, armor, weapon                                                        string
+	STR        int
+	DEX        int
+	CON        int
+	INT        int
+	WIS        int
+	CHA        int
+	BAB        int
+	AC         int
+	HP         int
+	HD         int
+	Weapondie  int
+	Initiative int
+	Level      int
+	Class      string
+	Armor      string
+	Weapon     string
 }
 
 //------------Functions----------------
