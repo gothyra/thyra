@@ -436,6 +436,10 @@ func (server *Server) FindExits(s [][]int, c Client, pos string, area string) []
 		if roomCubes[i].ID == pos && roomCubes[i].Exits != nil {
 
 			for z := range roomCubes[i].Exits {
+				if roomCubes[i].Exits[z].ToCubeId == "" {
+					continue
+				}
+
 				switch roomCubes[i].Exits[z].FromExit {
 				case "EAST":
 					exitarr[0][0] = roomCubes[i].Exits[z].ToArea
