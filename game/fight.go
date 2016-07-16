@@ -178,7 +178,7 @@ func fight(c Client, comb1 *PC, comb2 *PC) { // Μεθοδος μαχης. Πρ�
 			break
 		}
 		if (random(1, 20) + comb1.BAB + attrModifier(comb1.STR)) >= comb2.AC {
-			hit := random(1, comb1.weapondie)
+			hit := random(1, comb1.Weapondie)
 			comb2.HP -= hit
 			descrip := random(1, 4)
 
@@ -202,7 +202,7 @@ func fight(c Client, comb1 *PC, comb2 *PC) { // Μεθοδος μαχης. Πρ�
 			break
 		}
 		if (random(1, 20) + comb2.BAB + attrModifier(comb2.STR)) >= comb1.AC {
-			hit := random(1, comb2.weapondie)
+			hit := random(1, comb2.Weapondie)
 			comb1.HP -= hit
 			descrip := random(1, 4)
 
@@ -246,13 +246,13 @@ func do_fight(c Client) {
 	player1.INT = generateAttrib()
 	player1.WIS = generateAttrib()
 	player1.CHA = generateAttrib()
-	player1.armor, player1.AC = wearArmor(player1.DEX)
-	player1.level = 1
-	player1.class = assignClass()
-	player1.HP = calcHP(player1.class, player1.level)
-	player1.BAB = calcBAB(player1.class, player1.level)
-	player1.weapon, player1.weapondie = weildWeapon()
-	player1.initiative = random(1, 20) + attrModifier(player1.DEX)
+	player1.Armor, player1.AC = wearArmor(player1.DEX)
+	player1.Level = 1
+	player1.Class = assignClass()
+	player1.HP = calcHP(player1.Class, player1.Level)
+	player1.BAB = calcBAB(player1.Class, player1.Level)
+	player1.Weapon, player1.Weapondie = weildWeapon()
+	player1.Initiative = random(1, 20) + attrModifier(player1.DEX)
 	// Setting up player 2
 	player2 := new(PC)
 	player2.STR = generateAttrib()
@@ -261,44 +261,44 @@ func do_fight(c Client) {
 	player2.INT = generateAttrib()
 	player2.WIS = generateAttrib()
 	player2.CHA = generateAttrib()
-	player2.armor, player2.AC = wearArmor(player2.DEX)
-	player2.level = 1
-	player2.class = assignClass()
-	player2.HP = calcHP(player2.class, player2.level)
-	player2.BAB = calcBAB(player2.class, player2.level)
-	player2.weapon, player2.weapondie = weildWeapon()
-	player2.initiative = random(1, 20) + attrModifier(player2.DEX)
+	player2.Armor, player2.AC = wearArmor(player2.DEX)
+	player2.Level = 1
+	player2.Class = assignClass()
+	player2.HP = calcHP(player2.Class, player2.Level)
+	player2.BAB = calcBAB(player2.Class, player2.Level)
+	player2.Weapon, player2.Weapondie = weildWeapon()
+	player2.Initiative = random(1, 20) + attrModifier(player2.DEX)
 	// τελικο output
 	fmt.Println("-----@@@@@@----@@@@@@@-----\nMy, what a characters you have here?\n-----@@@@@@----@@@@@@@-----")
-	fmt.Println("Player 1, which is a ", player1.class, ", with ", player1.HP, "HP",
+	fmt.Println("Player 1, which is a ", player1.Class, ", with ", player1.HP, "HP",
 		"his strength is", player1.STR,
 		"his dexterity is", player1.DEX,
 		"his constitution is", player1.CON,
 		"his intelligence is ", player1.INT,
 		"his wisdom is ", player1.WIS,
 		"and his charisma is", player1.CHA,
-		"He's wearing a ", player1.armor, "providing him AC=", player1.AC, "and carries a ", player1.weapon)
-	fmt.Println("He rolled initiative", player1.initiative)
+		"He's wearing a ", player1.Armor, "providing him AC=", player1.AC, "and carries a ", player1.Weapon)
+	fmt.Println("He rolled initiative", player1.Initiative)
 	fmt.Println("-----------------------------------------------------------------------------------------------------")
-	fmt.Println("Player 2, which is a ", player2.class, ", with ", player2.HP, "HP",
+	fmt.Println("Player 2, which is a ", player2.Class, ", with ", player2.HP, "HP",
 		"his strength is", player2.STR,
 		"his dexterity is", player2.DEX,
 		"his constitution is", player2.CON,
 		"his intelligence is ", player2.INT,
 		"his wisdom is ", player2.WIS,
 		"and his charisma is", player2.CHA,
-		"He's wearing a ", player2.armor, "providing him AC=", player2.AC, "and carries a ", player2.weapon)
-	fmt.Println("He rolled initiative", player2.initiative)
+		"He's wearing a ", player2.Armor, "providing him AC=", player2.AC, "and carries a ", player2.Weapon)
+	fmt.Println("He rolled initiative", player2.Initiative)
 	fmt.Println("----------------------\nLET THE FIGHT BEGIN!\n----------------------")
 	//Υπολογισμός initiative, σε περιπτωση ισοπαλιας ξαναριχνουν ζαρια, αλλιως τοποθετουνται με αντιστοιχια στην μεθοδο fight()
-	for player1.initiative == player2.initiative {
-		player1.initiative = random(1, 20) + attrModifier(player1.DEX)
-		player2.initiative = random(1, 20) + attrModifier(player2.DEX)
+	for player1.Initiative == player2.Initiative {
+		player1.Initiative = random(1, 20) + attrModifier(player1.DEX)
+		player2.Initiative = random(1, 20) + attrModifier(player2.DEX)
 	}
 	switch {
-	case player1.initiative > player2.initiative:
+	case player1.Initiative > player2.Initiative:
 		fight(c, player1, player2)
-	case player1.initiative < player2.initiative:
+	case player1.Initiative < player2.Initiative:
 		fight(c, player2, player1)
 	default:
 		fmt.Println("Problem!")
