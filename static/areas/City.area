@@ -5,13 +5,15 @@
   <rooms>
  
     <room id="1" name="Inn" 
-        description="The inn is a two-storey stone-walled building, with a small walled yard and garden. It is fancifully decorated, and brightly lit by glowing gemstones set into the ceiling. Accomodations consist of several small rooms with beds and woolen mattresses."
-        maxx="1"
-        maxy="5">
-
+        description="The inn is a two-storey stone-walled building, with a small walled yard and garden. It is fancifully decorated, and brightly lit by glowing gemstones set into the ceiling. Accomodations consist of several small rooms with beds and woolen mattresses.">
     <cubes>
     
-     <cube id="1"  posx="0" posy="0"  toarea="City" toroomid="2" tocubeid="1" fromexit="WEST" />
+     <cube id="1"  posx="0" posy="0" >
+        <exit toarea="City" toroomid="2" tocubeid="1" fromexit="EAST"/>
+        <exit toarea="City" toroomid="2" tocubeid="3" fromexit="NORTH"/>
+    </cube>
+
+
      <cube id="2"  posx="0" posy="1" />
 
      <cube id="5"  posx="0" posy="4" />
@@ -99,13 +101,19 @@
 </room>
 
 <room id="2" name="Market" 
-        description="In a market quarter, surrounded by shadowed alleys and colorful marketplaces. The street outside is filled with the scent of damp earth."
-        maxx="1"
-        maxy="5">
+        description="In a market quarter, surrounded by shadowed alleys and colorful marketplaces. The street outside is filled with the scent of damp earth.">
 
 
     <cubes>
-      <cube id="1"  posx="0" posy="0"  toarea="City" toroomid="1" tocubeid="1" fromexit="EAST" />
+    <cube id="1"  posx="0" posy="0">
+ 
+        <exit toarea="City" toroomid="1" tocubeid="1" fromexit="EAST"/>
+        <exit toarea="City" toroomid="1" tocubeid="73" fromexit="NORTH"/>
+
+</cube>
+
+
+
     <cube id="2"  posx="0" posy="1"/>
     <cube id="3"  posx="0" posy="2"/>
     <cube id="4"  posx="0" posy="3"/>
