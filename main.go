@@ -35,8 +35,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := server.LoadLevels(); err != nil {
+	if err := server.LoadAreas(); err != nil {
 		os.Exit(1)
+	}
+
+	areas := make(map[string]map[string][][]int)
+	for areaID, area := range server.Areas {
+		areas[areaID] = make(map[string][][]int)
+		for _, room := range area.Rooms {
+			areas[areaID][room.ID] = server.CreateRoom(areaID, room.ID)
+		}
 	}
 
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
@@ -60,7 +68,7 @@ func main() {
 			continue
 		}
 
-		go handleConnection(conn, msgchan, addchan, rmchan, server)
+		go handleConnection(conn, msgchan, addchan, rmchan, server, areas)
 	}
 }
 
@@ -74,7 +82,14 @@ func promptMessage(c net.Conn, bufc *bufio.Reader, message string) string {
 	}
 }
 
-func handleConnection(c net.Conn, msgchan chan<- string, addchan chan<- game.Client, rmchan chan<- game.Client, server *game.Server) {
+func handleConnection(
+	c net.Conn,
+	msgchan chan<- string,
+	addchan chan<- game.Client,
+	rmchan chan<- game.Client,
+	server *game.Server,
+	roomsMap map[string]map[string][][]int,
+) {
 	bufc := bufio.NewReader(c)
 	defer c.Close()
 
@@ -124,7 +139,8 @@ func handleConnection(c net.Conn, msgchan chan<- string, addchan chan<- game.Cli
 		return
 	}
 
-	client := game.NewClient(c, player)
+	cmdCh := make(chan string)
+	client := game.NewClient(c, &player, cmdCh)
 
 	if strings.TrimSpace(client.Nickname) == "" {
 		log.Println("invalid username")
@@ -144,7 +160,12 @@ func handleConnection(c net.Conn, msgchan chan<- string, addchan chan<- game.Cli
 
 	// I/O
 	go client.ReadLinesInto(msgchan, server)
-	client.WriteLinesFrom(client.Ch)
+	for {
+		select {
+		case cmd := <-cmdCh:
+			server.HandleCommand(client, cmd, roomsMap)
+		}
+	}
 }
 
 func handleMessages(msgchan <-chan string, addchan <-chan game.Client, rmchan <-chan game.Client) {
@@ -159,7 +180,7 @@ func handleMessages(msgchan <-chan string, addchan <-chan game.Client, rmchan <-
 			}
 		case client := <-addchan:
 			log.Printf("New client: %v\n\r\n\r", client.Conn)
-			clients[client.Conn] = client.Ch
+			clients[client.Conn] = client.Cmd
 		case client := <-rmchan:
 			log.Printf("Client disconnects: %v\n\r\n\r", client.Conn)
 			delete(clients, client.Conn)
