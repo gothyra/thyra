@@ -1,6 +1,22 @@
-<player nickname="Seran" position="1" area="City" roomid="2">
-    <name></name>
-    <type></type>
-    <actions></actions>
-    <attributes></attributes>
-</player>
+<Player>
+    <nickname>Seran</nickname>
+    <str>9</str>
+    <dex>9</dex>
+    <con>17</con>
+    <int>11</int>
+    <wis>10</wis>
+    <cha>12</cha>
+    <bab>1</bab>
+    <ac>12</ac>
+    <hp>10</hp>
+    <hd>0</hd>
+    <weapondie>4</weapondie>
+    <initiative>1</initiative>
+    <level>1</level>
+    <class>Fighter</class>
+    <armor>Leather Armor</armor>
+    <weapon>dagger</weapon>
+    <position>1</position>
+    <area>City</area>
+    <roomid>1</roomid>
+</Player>
