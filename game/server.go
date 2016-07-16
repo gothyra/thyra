@@ -128,7 +128,7 @@ func (s *Server) LoadPlayer(playerName string) (bool, error) {
 		return true, xmlerr
 	}
 
-	log.Printf("Loaded player %q\n", player.Gamename)
+	log.Printf("Loaded player %q\n", player.Nickname)
 	s.addPlayer(player)
 
 	return true, nil
@@ -158,9 +158,10 @@ func (s *Server) CreatePlayer(nick string) {
 	}
 	player := Player{
 		Nickname: nick,
+		PC:       *NewPC(),
+
 		Position: strconv.Itoa(1),
-		// TODO: Make this configurable
-		Area: "City",
+		Area:     "City",
 	}
 	s.addPlayer(player)
 }
@@ -186,7 +187,7 @@ func (s *Server) SavePlayer(player Player) bool {
 func (s *Server) OnExit(client Client) {
 	s.SavePlayer(*client.Player)
 	s.PlayerLoggedOut(client.Nickname)
-	client.WriteLineToUser(fmt.Sprintf("Good bye %s", client.Player.Gamename))
+	client.WriteLineToUser(fmt.Sprintf("Good bye %s", client.Player.Nickname))
 }
 
 func (s *Server) PlayerLoggedIn(nickname string) {
@@ -298,7 +299,7 @@ func (s *Server) CreateRoom(areaID string, roomID string) [][]int {
 }
 
 func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map[string][][]int) {
-	map_array := roomsMap[c.Player.Area][c.Player.RoomId]
+	map_array := roomsMap[c.Player.Area][c.Player.RoomID]
 
 	switch command {
 	case "l", "look", "map":
@@ -312,8 +313,8 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 			c.Player.Position = strconv.Itoa(newpos)
 			c.Player.Area = posarray[0][0]
-			c.Player.RoomId = posarray[0][2]
-			map_array := roomsMap[c.Player.Area][c.Player.RoomId]
+			c.Player.RoomID = posarray[0][2]
+			map_array := roomsMap[c.Player.Area][c.Player.RoomID]
 
 			posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
 			printToUser(s, c, map_array, posarray, c.Player.Area)
@@ -328,11 +329,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 			c.Player.Position = strconv.Itoa(newpos)
 			c.Player.Area = posarray[1][0]
-			c.Player.RoomId = posarray[1][2]
-			map_array := roomsMap[c.Player.Area][c.Player.RoomId]
+			c.Player.RoomID = posarray[1][2]
+			map_array := roomsMap[c.Player.Area][c.Player.RoomID]
 			posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
 			printToUser(s, c, map_array, posarray, c.Player.Area)
-
 		} else {
 			c.WriteToUser("You can't go that way\n")
 		}
@@ -344,8 +344,8 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 			c.Player.Position = strconv.Itoa(newpos)
 			c.Player.Area = posarray[2][0]
-			c.Player.RoomId = posarray[2][2]
-			map_array := roomsMap[c.Player.Area][c.Player.RoomId]
+			c.Player.RoomID = posarray[2][2]
+			map_array := roomsMap[c.Player.Area][c.Player.RoomID]
 			posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
 			printToUser(s, c, map_array, posarray, c.Player.Area)
 
@@ -360,8 +360,8 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 			c.Player.Position = strconv.Itoa(newpos)
 			c.Player.Area = posarray[3][0]
-			c.Player.RoomId = posarray[3][2]
-			map_array := roomsMap[c.Player.Area][c.Player.RoomId]
+			c.Player.RoomID = posarray[3][2]
+			map_array := roomsMap[c.Player.Area][c.Player.RoomID]
 			posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
 			printToUser(s, c, map_array, posarray, c.Player.Area)
 
@@ -369,7 +369,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.WriteToUser("You can't go that way\n")
 		}
 
-	case "quit":
+	case "q", "quit":
 		s.OnExit(c)
 		c.Conn.Close()
 
@@ -377,6 +377,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		for _, nickname := range s.OnlinePlayers() {
 			c.WriteToUser(nickname + "\n")
 		}
+
 	case "fight":
 		do_fight(c)
 
@@ -391,10 +392,10 @@ func (server *Server) FindExits(s [][]int, c Client, pos string, area string) []
 	intpos, _ := strconv.Atoi(pos) //to exw balei etsi prwsorina.
 	exitarr := [][]string{}        // 2d array s   ,einai o xartis.
 
-	east := []string{area, "0", c.Player.RoomId}
-	west := []string{area, "0", c.Player.RoomId}
-	north := []string{area, "0", c.Player.RoomId}
-	south := []string{area, "0", c.Player.RoomId}
+	east := []string{area, "0", c.Player.RoomID}
+	west := []string{area, "0", c.Player.RoomID}
+	north := []string{area, "0", c.Player.RoomID}
+	south := []string{area, "0", c.Player.RoomID}
 
 	exitarr = append(exitarr, east)
 	exitarr = append(exitarr, west)
@@ -403,7 +404,7 @@ func (server *Server) FindExits(s [][]int, c Client, pos string, area string) []
 
 	roomCubes := server.Areas[area].Rooms[0].Cubes
 	for i := range server.Areas[area].Rooms {
-		if server.Areas[area].Rooms[i].ID == c.Player.RoomId {
+		if server.Areas[area].Rooms[i].ID == c.Player.RoomID {
 			roomCubes = server.Areas[area].Rooms[i].Cubes
 		}
 	}
@@ -435,43 +436,36 @@ func (server *Server) FindExits(s [][]int, c Client, pos string, area string) []
 		if roomCubes[i].ID == pos && roomCubes[i].Exits != nil {
 
 			for z := range roomCubes[i].Exits {
-
-				if roomCubes[i].Exits[z].ToCubeId != "" && roomCubes[i].Exits[z].FromExit == "EAST" {
+				switch roomCubes[i].Exits[z].FromExit {
+				case "EAST":
 					exitarr[0][0] = roomCubes[i].Exits[z].ToArea
-					exitarr[0][1] = roomCubes[i].Exits[z].ToCubeId
-					exitarr[0][2] = roomCubes[i].Exits[z].ToRoomId
+					exitarr[0][1] = roomCubes[i].Exits[z].ToCubeID
+					exitarr[0][2] = roomCubes[i].Exits[z].ToRoomID
 
-				}
-
-				if roomCubes[i].Exits[z].ToCubeId != "" && roomCubes[i].Exits[z].FromExit == "WEST" {
+				case "WEST":
 					exitarr[1][0] = roomCubes[i].Exits[z].ToArea
-					exitarr[1][1] = roomCubes[i].Exits[z].ToCubeId
-					exitarr[1][2] = roomCubes[i].Exits[z].ToRoomId
+					exitarr[1][1] = roomCubes[i].Exits[z].ToCubeID
+					exitarr[1][2] = roomCubes[i].Exits[z].ToRoomID
 
-				}
-
-				if roomCubes[i].Exits[z].ToCubeId != "" && roomCubes[i].Exits[z].FromExit == "NORTH" {
+				case "NORTH":
 					exitarr[2][0] = roomCubes[i].Exits[z].ToArea
-					exitarr[2][1] = roomCubes[i].Exits[z].ToCubeId
-					exitarr[2][2] = roomCubes[i].Exits[z].ToRoomId
+					exitarr[2][1] = roomCubes[i].Exits[z].ToCubeID
+					exitarr[2][2] = roomCubes[i].Exits[z].ToRoomID
 
-				}
-
-				if roomCubes[i].Exits[z].ToCubeId != "" && roomCubes[i].Exits[z].FromExit == "SOUTH" {
+				case "SOUTH":
 					exitarr[3][0] = roomCubes[i].Exits[z].ToArea
-					exitarr[3][1] = roomCubes[i].Exits[z].ToCubeId
-					exitarr[3][2] = roomCubes[i].Exits[z].ToRoomId
-
+					exitarr[3][1] = roomCubes[i].Exits[z].ToCubeID
+					exitarr[3][2] = roomCubes[i].Exits[z].ToRoomID
 				}
 			}
 		}
-
 	}
+
 	c.WriteToUser("\n")
 
 	// return 2d string , morfi [0][0] Area , [0][1] Cubeid [0][2] Roomid
 	// [0] East , [1] West , [2] North ,[3] South
-	//TODO : make cube have multiple exits.now cube can lead only from 1 exit to different area-roomid.
+	// TODO: make cube have multiple exits.now cube can lead only from 1 exit to different area-roomid.
 	return exitarr
 }
 

@@ -25,7 +25,7 @@ type Cube struct {
 
 type Exit struct {
 	ToArea   string `xml:"toarea,attr"`
-	ToRoomId string `xml:"toroomid,attr"`
-	ToCubeId string `xml:"tocubeid,attr"`
+	ToRoomID string `xml:"toroomid,attr"`
+	ToCubeID string `xml:"tocubeid,attr"`
 	FromExit string `xml:"fromexit,attr"`
 }

@@ -12,41 +12,66 @@ import (
 
 // ------------Standard values-----------
 type PC struct { //Τα στοιχεια του χαρακτήρα.
-	STR        int
-	DEX        int
-	CON        int
-	INT        int
-	WIS        int
-	CHA        int
-	BAB        int
-	AC         int
-	HP         int
-	HD         int
-	Weapondie  int
-	Initiative int
-	Level      int
-	Class      string
-	Armor      string
-	Weapon     string
+	STR        int    `xml:"str"`
+	DEX        int    `xml:"dex"`
+	CON        int    `xml:"con"`
+	INT        int    `xml:"int"`
+	WIS        int    `xml:"wis"`
+	CHA        int    `xml:"cha"`
+	BAB        int    `xml:"bab"`
+	AC         int    `xml:"ac"`
+	HP         int    `xml:"hp"`
+	HD         int    `xml:"hd"`
+	Weapondie  int    `xml:"weapondie"`
+	Initiative int    `xml:"initiative"`
+	Level      int    `xml:"level"`
+	Class      string `xml:"class"`
+	Armor      string `xml:"armor"`
+	Weapon     string `xml:"weapon"`
+}
+
+func NewPC() *PC {
+	player := &PC{
+		STR:   generateAttrib(),
+		DEX:   generateAttrib(),
+		CON:   generateAttrib(),
+		INT:   generateAttrib(),
+		WIS:   generateAttrib(),
+		CHA:   generateAttrib(),
+		Level: 1,
+		Class: assignClass(),
+	}
+
+	player.Armor, player.AC = wearArmor(player.DEX)
+	player.HP = calcHP(player.Class, player.Level)
+	player.BAB = calcBAB(player.Class, player.Level)
+	player.Weapon, player.Weapondie = weildWeapon()
+	player.Initiative = random(1, 20) + attrModifier(player.DEX)
+
+	return player
 }
 
 //------------Functions----------------
-func random(min, max int) int { // μια random οπως την ξερουμε
+// μια random οπως την ξερουμε
+func random(min, max int) int {
 	max = max + 1
 	return rand.Intn(max-min) + min
 }
 
-func generateAttrib() int { // γενικη μεθοδος για να δημιουργουμε τα stats, δηλ. strength, constitution etc.
-
+// γενικη μεθοδος για να δημιουργουμε τα stats, δηλ. strength, constitution etc.
+func generateAttrib() int {
 	return random(8, 18)
-
 }
-func attrModifier(attribute int) int { // Βασικη μεθοδος υπολογισμου του attribute bonus. Θελει προβλεψη για τις αρνητικες τιμες, γιατι παει ανα δυο
-	// ποντους το αρνητικο bonus (9 και 8 attribute δινουν -1 κ.ο.κ.)
+
+// Βασικη μεθοδος υπολογισμου του attribute bonus. Θελει προβλεψη για τις αρνητικες τιμες, γιατι παει ανα δυο
+// ποντους το αρνητικο bonus (9 και 8 attribute δινουν -1 κ.ο.κ.)
+func attrModifier(attribute int) int {
 	return (attribute - 10) / 2
 }
-func wearArmor(dexterity int) (string, int) { // τωρα αυτη διαλεγει στην τυχη μια πανοπλια. Αργοτερα, απλα θα παιρνει το αναγνωριστικο της πανοπλιας απο την βαση δεδομενων
-	//και θα υπολογιζει το συνολο του AC
+
+// τωρα αυτη διαλεγει στην τυχη μια πανοπλια. Αργοτερα, απλα θα παιρνει το αναγνωριστικο της πανοπλιας απο την βαση δεδομενων
+//και θα υπολογιζει το συνολο του AC
+func wearArmor(dexterity int) (string, int) {
 	lottery := random(1, 5)
 	var armorname string
 	var armorBonus, dexBonus int
@@ -85,6 +110,7 @@ func wearArmor(dexterity int) (string, int) { // τωρα αυτη διαλεγ�
 	}
 	return armorname, 10 + armorBonus + dexBonus
 }
+
 func weildWeapon() (string, int) {
 	lottery := random(1, 5)
 	var weapon string
@@ -122,20 +148,22 @@ func assignClass() string { //Τρεις κλασσεις για αρχη και
 	}
 	return class
 }
-func calcBAB(class string, level int) int { // Οι πινακες για το Base Attack Bonus που ειναι για καθε κλασση βγαινουν βαση αλγοριθμου
+
+func calcBAB(class string, level int) int {
+	// Οι πινακες για το Base Attack Bonus που ειναι για καθε κλασση βγαινουν βαση αλγοριθμου
 	//Εχει και προβλεψη για αν βαλουμε μεγαλυτερα level
 	BAB := 0
-	if class == "Commoner" {
+	switch class {
+	case "Commoner":
 		BAB = level / 2
-	}
-	if class == "Fighter" {
+	case "Fighter":
 		BAB = level
-	}
-	if class == "Rogue" {
+	case "Rogue":
 		BAB = (3 * level) / 4
 	}
 	return BAB
 }
+
 func calcHP(class string, level int) int { // Εχει και προβλεψη για αν βαλουμε μεγαλυτερα level
 	var HP int
 	var HD int
@@ -170,13 +198,12 @@ func calcHP(class string, level int) int { // Εχει και προβλεψη �
 	}
 	return HP
 }
-func fight(c Client, comb1 *PC, comb2 *PC) { // Μεθοδος μαχης. Πρωτα βαραει ο comb1 και μετα ο comb2. Το initiative καθοριζεται στην main()
-	// δοκιμασα "for comb1.HP > 0 || comb2.HP > 0 {" και κανει οτι να'ναι. Γιατι; Για τωρα δουλευει με αρχικο check των hit points
-	// σε ατερμονα βρογχο
-	for {
-		if comb1.HP < 0 {
-			break
-		}
+
+// Μεθοδος μαχης. Πρωτα βαραει ο comb1 και μετα ο comb2. Το initiative καθοριζεται στην main()
+// δοκιμασα "for comb1.HP > 0 || comb2.HP > 0 {" και κανει οτι να'ναι. Γιατι; Για τωρα δουλευει
+//  με αρχικο check των hit points σε ατερμονα βρογχο
+func fight(c Client, comb1, comb2 *PC) {
+	for comb1.HP > 0 && comb2.HP > 0 {
 		if (random(1, 20) + comb1.BAB + attrModifier(comb1.STR)) >= comb2.AC {
 			hit := random(1, comb1.Weapondie)
 			comb2.HP -= hit
@@ -239,35 +266,10 @@ func do_fight(c Client) {
 	rand.Seed(time.Now().Unix())
 
 	// Setting up player 1
-	player1 := new(PC)
-	player1.STR = generateAttrib()
-	player1.DEX = generateAttrib()
-	player1.CON = generateAttrib()
-	player1.INT = generateAttrib()
-	player1.WIS = generateAttrib()
-	player1.CHA = generateAttrib()
-	player1.Armor, player1.AC = wearArmor(player1.DEX)
-	player1.Level = 1
-	player1.Class = assignClass()
-	player1.HP = calcHP(player1.Class, player1.Level)
-	player1.BAB = calcBAB(player1.Class, player1.Level)
-	player1.Weapon, player1.Weapondie = weildWeapon()
-	player1.Initiative = random(1, 20) + attrModifier(player1.DEX)
+	player1 := NewPC()
 	// Setting up player 2
-	player2 := new(PC)
-	player2.STR = generateAttrib()
-	player2.DEX = generateAttrib()
-	player2.CON = generateAttrib()
-	player2.INT = generateAttrib()
-	player2.WIS = generateAttrib()
-	player2.CHA = generateAttrib()
-	player2.Armor, player2.AC = wearArmor(player2.DEX)
-	player2.Level = 1
-	player2.Class = assignClass()
-	player2.HP = calcHP(player2.Class, player2.Level)
-	player2.BAB = calcBAB(player2.Class, player2.Level)
-	player2.Weapon, player2.Weapondie = weildWeapon()
-	player2.Initiative = random(1, 20) + attrModifier(player2.DEX)
+	player2 := NewPC()
+
 	// τελικο output
 	fmt.Println("-----@@@@@@----@@@@@@@-----\nMy, what a characters you have here?\n-----@@@@@@----@@@@@@@-----")
 	fmt.Println("Player 1, which is a ", player1.Class, ", with ", player1.HP, "HP",
@@ -290,11 +292,13 @@ func do_fight(c Client) {
 		"He's wearing a ", player2.Armor, "providing him AC=", player2.AC, "and carries a ", player2.Weapon)
 	fmt.Println("He rolled initiative", player2.Initiative)
 	fmt.Println("----------------------\nLET THE FIGHT BEGIN!\n----------------------")
+
 	//Υπολογισμός initiative, σε περιπτωση ισοπαλιας ξαναριχνουν ζαρια, αλλιως τοποθετουνται με αντιστοιχια στην μεθοδο fight()
 	for player1.Initiative == player2.Initiative {
 		player1.Initiative = random(1, 20) + attrModifier(player1.DEX)
 		player2.Initiative = random(1, 20) + attrModifier(player2.DEX)
 	}
+
 	switch {
 	case player1.Initiative > player2.Initiative:
 		fight(c, player1, player2)
@@ -303,5 +307,4 @@ func do_fight(c Client) {
 	default:
 		fmt.Println("Problem!")
 	}
-
 }
