@@ -1,6 +1,6 @@
 package game
 
-type Level struct {
+type Area struct {
 	Key   string `xml:"key,attr"`
 	Tag   string `xml:"tag,attr"`
 	Name  string `xml:"name"`
@@ -9,7 +9,7 @@ type Level struct {
 }
 
 type Room struct {
-	Id          string `xml:"id,attr"`
+	ID          string `xml:"id,attr"`
 	Name        string `xml:"name,attr"`
 	Description string `xml:"description,attr"`
 	Maxx        string `xml:"maxx,attr"`
