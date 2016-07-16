@@ -1,28 +1,18 @@
 package game
 
-import (
-	"encoding/xml"
-	"strings"
-)
+import "strings"
 
 // Player holds all variables for a character.
 type Player struct {
-	XMLName    xml.Name    `xml:"player"`
-	Nickname   string      `xml:"nickname,attr"`
-	Gamename   string      `xml:"name"`
-	Position   string      `xml:"position,attr"`
-	Area       string      `xml:"area,attr"`
-	RoomId     string      `xml:"roomid,attr"`
-	PlayerType string      `xml:"type"`
-	Ch         chan string `xml:"-"`
-	ActionLog  []string    `xml:"actions>action"`
-	Attributes []Attribute `xml:"attributes>attribute"`
-}
+	Nickname string `xml:"nickname"`
+	PC
 
-type Attribute struct {
-	// TODO --> Attributes like STR DEX CON etc.
-	Name  string `xml:"name,attr"`
-	Value int64  `xml:"value"`
+	Position string `xml:"position"`
+	Area     string `xml:"area"`
+	RoomID   string `xml:"roomid"`
+
+	Ch        chan string `xml:"-"`
+	ActionLog []string
 }
 
 func (p *Player) LogAction(action string) {
@@ -38,30 +28,4 @@ func (p *Player) HasAction(action string) bool {
 		}
 	}
 	return false
-}
-
-func (p *Player) GetAttribute(name string) int64 {
-	for _, a := range p.Attributes {
-		if strings.ToLower(a.Name) == strings.ToLower(name) {
-			return a.Value
-		}
-	}
-	return 0
-}
-
-func (p *Player) UpdateAttribute(name string, update int64) {
-	for i := range p.Attributes {
-		if strings.ToLower(p.Attributes[i].Name) == strings.ToLower(name) {
-			p.Attributes[i].Value = p.Attributes[i].Value + update
-			if p.Attributes[i].Value <= 0 {
-				p.Attributes[i].Value = 0
-			}
-			return
-		}
-	}
-
-	p.Attributes = append(p.Attributes, Attribute{
-		Name:  name,
-		Value: update,
-	})
 }
