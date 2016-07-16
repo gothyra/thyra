@@ -299,7 +299,6 @@ func (s *Server) CreateRoom(areaID string, roomID string) [][]int {
 
 func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map[string][][]int) {
 	map_array := roomsMap[c.Player.Area][c.Player.RoomId]
-	fmt.Printf("RoomID: %s. CubeID: %s\n", c.Player.RoomId, c.Player.Position)
 
 	switch command {
 	case "l", "look", "map":
@@ -318,7 +317,6 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 			posarray := s.FindExits(map_array, c, c.Player.Position, c.Player.Area)
 			printToUser(s, c, map_array, posarray, c.Player.Area)
-			fmt.Println(c.Player.Position, c.Player.Area, c.Player.RoomId)
 		} else {
 			c.WriteToUser("You can't go that way\n")
 		}
@@ -385,6 +383,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	default:
 		c.WriteLineToUser("Huh?")
 	}
+	c.WriteToUser("\n\n" + c.Player.Nickname + " : ")
 }
 
 //Briskei ta exits analoga me to position tou user, default possition otan kanei register einai 1
@@ -433,33 +432,37 @@ func (server *Server) FindExits(s [][]int, c Client, pos string, area string) []
 	//Finding Exits that belongs to different area or room.
 	for i := range roomCubes {
 
-		if roomCubes[i].ID == pos {
-			if roomCubes[i].ToCubeId != "" && roomCubes[i].FromExit == "EAST" {
-				exitarr[0][0] = roomCubes[i].ToArea
-				exitarr[0][1] = roomCubes[i].ToCubeId
-				exitarr[0][2] = roomCubes[i].ToRoomId
+		if roomCubes[i].ID == pos && roomCubes[i].Exits != nil {
 
-			}
+			for z := range roomCubes[i].Exits {
 
-			if roomCubes[i].ToCubeId != "" && roomCubes[i].FromExit == "WEST" {
-				exitarr[1][0] = roomCubes[i].ToArea
-				exitarr[1][1] = roomCubes[i].ToCubeId
-				exitarr[1][2] = roomCubes[i].ToRoomId
+				if roomCubes[i].Exits[z].ToCubeId != "" && roomCubes[i].Exits[z].FromExit == "EAST" {
+					exitarr[0][0] = roomCubes[i].Exits[z].ToArea
+					exitarr[0][1] = roomCubes[i].Exits[z].ToCubeId
+					exitarr[0][2] = roomCubes[i].Exits[z].ToRoomId
 
-			}
+				}
 
-			if roomCubes[i].ToCubeId != "" && roomCubes[i].FromExit == "NORTH" {
-				exitarr[2][0] = roomCubes[i].ToArea
-				exitarr[2][1] = roomCubes[i].ToCubeId
-				exitarr[2][2] = roomCubes[i].ToRoomId
+				if roomCubes[i].Exits[z].ToCubeId != "" && roomCubes[i].Exits[z].FromExit == "WEST" {
+					exitarr[1][0] = roomCubes[i].Exits[z].ToArea
+					exitarr[1][1] = roomCubes[i].Exits[z].ToCubeId
+					exitarr[1][2] = roomCubes[i].Exits[z].ToRoomId
 
-			}
+				}
 
-			if roomCubes[i].ToCubeId != "" && roomCubes[i].FromExit == "SOUTH" {
-				exitarr[3][0] = roomCubes[i].ToArea
-				exitarr[3][1] = roomCubes[i].ToCubeId
-				exitarr[3][2] = roomCubes[i].ToRoomId
+				if roomCubes[i].Exits[z].ToCubeId != "" && roomCubes[i].Exits[z].FromExit == "NORTH" {
+					exitarr[2][0] = roomCubes[i].Exits[z].ToArea
+					exitarr[2][1] = roomCubes[i].Exits[z].ToCubeId
+					exitarr[2][2] = roomCubes[i].Exits[z].ToRoomId
 
+				}
+
+				if roomCubes[i].Exits[z].ToCubeId != "" && roomCubes[i].Exits[z].FromExit == "SOUTH" {
+					exitarr[3][0] = roomCubes[i].Exits[z].ToArea
+					exitarr[3][1] = roomCubes[i].Exits[z].ToCubeId
+					exitarr[3][2] = roomCubes[i].Exits[z].ToRoomId
+
+				}
 			}
 		}
 
