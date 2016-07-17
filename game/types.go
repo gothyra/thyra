@@ -1,5 +1,18 @@
 package game
 
+import "net"
+
+type ClientRequest struct {
+	Client Client
+	Cmd    string
+}
+
+type LoginRequest struct {
+	Username string
+	Conn     net.Conn
+	Reply    chan bool
+}
+
 // Player holds all variables for a character.
 type Player struct {
 	Nickname string `toml:"nickname"`

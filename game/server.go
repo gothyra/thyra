@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,19 +18,18 @@ import (
 )
 
 type Config struct {
-	host      string
-	port      int
-	staticDir string
+	host string
+	port int
 }
 
 type Server struct {
+	sync.RWMutex
 	players       map[string]Player
-	Areas         map[string]Area
-	staticDir     string
-	DefaultArea   Area
-	Config        Config
-	onlineLock    sync.RWMutex
 	onlineClients map[string]*Client
+	Areas         map[string]Area
+
+	staticDir string
+	Config    Config
 }
 
 func NewServer(staticDir string) *Server {
@@ -84,7 +82,8 @@ func (s *Server) LoadAreas() error {
 		}
 
 		log.Printf("Loaded area %q\n", area.Name)
-		s.addArea(area)
+		// TODO: Lock
+		s.Areas[area.Name] = area
 
 		return nil
 	}
@@ -92,18 +91,14 @@ func (s *Server) LoadAreas() error {
 	return filepath.Walk(s.staticDir+"/areas/", areaWalker)
 }
 
-func (s *Server) addArea(area Area) {
-	s.Areas[area.Name] = area
-}
-
 func (s *Server) getPlayerFileName(playerName string) (bool, string) {
-	if !s.IsValidUsername(playerName) {
+	if !IsValidUsername(playerName) {
 		return false, ""
 	}
 	return true, s.staticDir + "/player/" + playerName + ".toml"
 }
 
-func (s *Server) IsValidUsername(playerName string) bool {
+func IsValidUsername(playerName string) bool {
 	r, err := regexp.Compile(`^[a-zA-Z0-9_-]{1,40}$`)
 	if err != nil {
 		return false
@@ -136,14 +131,10 @@ func (s *Server) LoadPlayer(playerName string) (bool, error) {
 	}
 
 	log.Printf("Loaded player %q\n", player.Nickname)
-	s.addPlayer(player)
+	// TODO: Lock
+	s.players[player.Nickname] = player
 
 	return true, nil
-}
-
-func (s *Server) addPlayer(player Player) error {
-	s.players[player.Nickname] = player
-	return nil
 }
 
 func (s *Server) GetPlayerByNick(nickname string) (Player, bool) {
@@ -170,7 +161,8 @@ func (s *Server) CreatePlayer(nick string) {
 		Room:     "Inn",
 		Position: "1",
 	}
-	s.addPlayer(player)
+	// TODO: Lock
+	s.players[player.Nickname] = player
 }
 
 func (s *Server) SavePlayer(player Player) bool {
@@ -200,20 +192,20 @@ func (s *Server) OnExit(client Client) {
 }
 
 func (s *Server) ClientLoggedIn(name string, client Client) {
-	s.onlineLock.Lock()
+	s.Lock()
 	s.onlineClients[name] = &client
-	s.onlineLock.Unlock()
+	s.Unlock()
 }
 
 func (s *Server) ClientLoggedOut(name string) {
-	s.onlineLock.Lock()
+	s.Lock()
 	delete(s.onlineClients, name)
-	s.onlineLock.Unlock()
+	s.Unlock()
 }
 
 func (s *Server) OnlineClients() []Client {
-	s.onlineLock.RLock()
-	defer s.onlineLock.RUnlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	online := []Client{}
 	for _, online_clients := range s.onlineClients {
@@ -224,10 +216,11 @@ func (s *Server) OnlineClients() []Client {
 }
 
 func (s *Server) MapList() []string {
-	s.onlineLock.RLock()
-	defer s.onlineLock.RUnlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	maplist := []string{}
+	// TODO: Remove Areas from Server
 	for area := range s.Areas {
 		maplist = append(maplist, area)
 	}
@@ -235,15 +228,7 @@ func (s *Server) MapList() []string {
 	return maplist
 }
 
-func (s *Server) WriteLinesFrom(conn net.Conn, ch <-chan string) {
-	for msg := range ch {
-		_, err := io.WriteString(conn, msg)
-		if err != nil {
-			return
-		}
-	}
-}
-
+// TODO: Remove from Server
 func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
 
 	biggestx := 0
@@ -251,6 +236,7 @@ func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
 	biggest := 0
 
 	roomCubes := []Cube{}
+	// TODO: Remove Areas from Server
 	for i := range s.Areas[area].Rooms {
 		if s.Areas[area].Rooms[i].Name == room {
 			roomCubes = s.Areas[area].Rooms[i].Cubes
@@ -298,6 +284,7 @@ func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
 	return maparray
 }
 
+// TODO: Remove from Server
 func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map[string][][]Cube) {
 	map_array := roomsMap[c.Player.Area][c.Player.Room]
 
@@ -340,6 +327,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	case "w", "west":
 		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[1][1])
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+
 		if newpos > 0 {
 			c.Player.Position = strconv.Itoa(newpos)
 
@@ -367,7 +355,6 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
-
 		} else {
 			c.WriteToUser("You can't go that way\n")
 		}
@@ -385,7 +372,6 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
-
 		} else {
 			c.WriteToUser("You can't go that way\n")
 		}
