@@ -94,7 +94,8 @@ func handleConnection(
 	defer c.Close()
 
 	log.Println("New connection open:", c.RemoteAddr())
-	io.WriteString(c, welcomePage)
+
+	io.WriteString(c, WelcomePage)
 
 	var nickname string
 	questions := 0
