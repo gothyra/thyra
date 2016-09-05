@@ -12,23 +12,24 @@ import (
 
 // ------------Standard values-----------
 type PC struct { //Τα στοιχεια του χαρακτήρα.
-	STR        int    `xml:"str"` //Strength του χαρακτήρα
-	DEX        int    `xml:"dex"` //Dexterity του χαρακτήρα
-	CON        int    `xml:"con"` //Constitution του χαρακτήρα
-	INT        int    `xml:"int"` //Intelligence του χαρακτήρα
-	WIS        int    `xml:"wis"` //Wisdomw του χαρακτήρα
-	CHA        int    `xml:"cha"` //Charisma του χαρακτήρα
-	BAB        int    `xml:"bab"` //Base attack Bonus του χαρακτήρα
-	AC         int    `xml:"ac"` //Armor Class του χαρακτήρα
-	HP         int    `xml:"hp"` //Hit points του χαρακτήρα
-	HD         int    `xml:"hd"` //Hit dice του χαρακτήρα
-	Weapondie  int    `xml:"weapondie"` //Τύπος ζαριού του όπλου του χαρακτήρα
+	STR        int    `xml:"str"`        //Strength του χαρακτήρα
+	DEX        int    `xml:"dex"`        //Dexterity του χαρακτήρα
+	CON        int    `xml:"con"`        //Constitution του χαρακτήρα
+	INT        int    `xml:"int"`        //Intelligence του χαρακτήρα
+	WIS        int    `xml:"wis"`        //Wisdomw του χαρακτήρα
+	CHA        int    `xml:"cha"`        //Charisma του χαρακτήρα
+	BAB        int    `xml:"bab"`        //Base attack Bonus του χαρακτήρα
+	AC         int    `xml:"ac"`         //Armor Class του χαρακτήρα
+	HP         int    `xml:"hp"`         //Hit points του χαρακτήρα
+	HD         int    `xml:"hd"`         //Hit dice του χαρακτήρα
+	Weapondie  int    `xml:"weapondie"`  //Τύπος ζαριού του όπλου του χαρακτήρα
 	Initiative int    `xml:"initiative"` //Χρειάζεται για την επιλογή ποιός θα παίξει πρώτος
-	Level      int    `xml:"level"` //Επίπεδο του χαρακτήρα
-	Class      string `xml:"class"` //Τύπος εξειδίκευσης του χαρακτήρα
-	Armor      string `xml:"armor"` //Τύπος πανοπλίας που φοράει ο χαρακτήρας
-	Weapon     string `xml:"weapon"` //Τύπος όπλου που κρατάει ο χαρακτήρας
+	Level      int    `xml:"level"`      //Επίπεδο του χαρακτήρα
+	Class      string `xml:"class"`      //Τύπος εξειδίκευσης του χαρακτήρα
+	Armor      string `xml:"armor"`      //Τύπος πανοπλίας που φοράει ο χαρακτήρας
+	Weapon     string `xml:"weapon"`     //Τύπος όπλου που κρατάει ο χαρακτήρας
 }
+
 /* Εκτελώντας την generateAttrib(), δίνουμε μια τυχαία τιμή από 8 ώς 18 σε κάθε ένα χαρακτηριστικό, και επιλέγουμε μια
    τυχαία κλάσση, από τις τρείς που διαθέτουμε για αυτό το παράδειγμα, με την assignClass().
 */
@@ -43,7 +44,7 @@ func NewPC() *PC {
 		Level: 1,
 		Class: assignClass(),
 	}
-// Όπλο και πανοπλία φοράνε τυχαία οι χαρακτηρες, αλλά τα Hit Points και ΒΑΒ υπολογίζονται βάση αλγορίθμου.
+	// Όπλο και πανοπλία φοράνε τυχαία οι χαρακτηρες, αλλά τα Hit Points και ΒΑΒ υπολογίζονται βάση αλγορίθμου.
 	player.Armor, player.AC = wearArmor(player.DEX)
 	player.HP = calcHP(player.Class, player.Level)
 	player.BAB = calcBAB(player.Class, player.Level)
@@ -112,6 +113,7 @@ func wearArmor(dexterity int) (string, int) {
 	}
 	return armorname, 10 + armorBonus + dexBonus
 }
+
 // Η μέθοδος αυτή, δίνει όπλο στον χαρακτήρα. Το weapon είναι το όνομα του όπλου και το weapondie είναι πόσες πλευρές έχει το ζάρι
 // που κάνει το damage
 func weildWeapon() (string, int) {
@@ -137,6 +139,7 @@ func weildWeapon() (string, int) {
 	}
 	return weapon, weapondie
 }
+
 // Μια μέθοδος που δίνει τυχαία μια κλάσση στον χαρακτήρα. Αυτό θα χρειαστεί για να υπολογιστούν άλλοι παράγοντες,
 // όπως Hit Points, ΒΑΒ κ.α.
 func assignClass() string { //Τρεις κλασσεις για αρχη και βλεπουμε
@@ -152,7 +155,8 @@ func assignClass() string { //Τρεις κλασσεις για αρχη και
 	}
 	return class
 }
-// Μέθοδος υπολογισμού του Base Attack Bonus, τον σταθερό αριθμό που χρησιμοποιούν οι χαρακτήρες για να προσθέσουν στο 
+
+// Μέθοδος υπολογισμού του Base Attack Bonus, τον σταθερό αριθμό που χρησιμοποιούν οι χαρακτήρες για να προσθέσουν στο
 // εικοσάπλευρο ζάρι όταν προσπαθούν να χτυπήσουν τον άλλον
 func calcBAB(class string, level int) int {
 	// Οι πινακες για το Base Attack Bonus που ειναι για καθε κλασση βγαινουν βαση αλγοριθμου
@@ -168,6 +172,7 @@ func calcBAB(class string, level int) int {
 	}
 	return BAB
 }
+
 // Μέθοδος υπολογισμού των Hit Points. Παίζει ρόλο τι κλάσση είναι ο χαρακτήρας και τι επίπεδο
 // Στην ουσία, κάθε κλάσση έχει ένα τύπο πολύπλευρου ζαριού που το ρίχνει για να προσθέσει το αποτέλεσμα του στα υπάρχοντα
 // ΗΡ κάθε φορά που παίρνει επίπεδο. Στο πρώτο επίπεδο παίρνει τον μέγιστο αριθμό.

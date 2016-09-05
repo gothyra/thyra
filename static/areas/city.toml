@@ -84,7 +84,12 @@ In a market quarter, surrounded by shadowed alleys and colorful marketplaces.
 The street outside is filled with the scent of damp earth.
 """
 cubes = [
-{ id = "01", posx = "0", posy = "0", exits = [{ toarea="City", toroom="Inn", tocubeid="1", fromexit="East" }] },
+{ id = "1", posx = "0", posy = "0", exits = [ { toarea = "City", toroom ="Inn", tocubeid = "01", fromexit = "East" },
+
+{ toarea = "City", toroom ="Market", tocubeid = "01", fromexit = "North" },
+
+ ] },
+
 { id = "02", posx = "0", posy = "1" },
 { id = "03", posx = "0", posy = "2" },
 { id = "04", posx = "0", posy = "3" },
