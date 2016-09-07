@@ -1,0 +1,43 @@
+name = "Arena"
+intro = "Arena Test"
+
+[rooms.Cage]
+name = "Cage" 
+description = """
+Arena Testing Area
+"""
+cubes = [ 
+{ 
+id = "1", posx = "0", posy = "0", type="door",
+exits = [ { toarea = "City", toroom ="Market", tocubeid = "1" },
+
+ ] },
+{ id = "2", posx = "0", posy = "1" },
+{ id = "3", posx = "0", posy = "2" },
+{ id = "4", posx = "0", posy = "3" },
+{ id = "5", posx = "0", posy = "4" },
+
+
+{ id = "6", posx = "1", posy = "0" },
+{ id = "7", posx = "1", posy = "1" },
+{ id = "8", posx = "1", posy = "2" },
+{ id = "9", posx = "1", posy = "3" },
+{ id = "10", posx = "1", posy = "4" },
+
+
+{ id = "11", posx = "2", posy = "0" },
+
+{ id = "13", posx = "2", posy = "2" },
+{ id = "14", posx = "2", posy = "3" },
+{ id = "15", posx = "2", posy = "4" },
+
+
+{ id = "16", posx = "3", posy = "0" },
+{ id = "17", posx = "3", posy = "1" },
+{ id = "18", posx = "3", posy = "2" },
+{ id = "19", posx = "3", posy = "3" },
+{ id = "20", posx = "3", posy = "4" },
+
+
+]
+    
