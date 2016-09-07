@@ -9,10 +9,8 @@ It is fancifully decorated, and brightly lit by glowing gemstones set into the c
 Accomodations consist of several small rooms with beds and woolen mattresses.
 """
 cubes = [ 
-{ id = "1", posx = "0", posy = "0", exits = [ { toarea = "City", toroom ="Market", tocubeid = "01", fromexit = "West" },
-
-{ toarea = "City", toroom ="Market", tocubeid = "01", fromexit = "North" },
-
+{ id = "1", posx = "0", posy = "0", type="door",
+ exits = [ { toarea = "City", toroom ="Market", tocubeid = "2" },
  ] },
 { id = "2", posx = "0", posy = "1" },
 { id = "5", posx = "0", posy = "4" },
@@ -84,14 +82,12 @@ In a market quarter, surrounded by shadowed alleys and colorful marketplaces.
 The street outside is filled with the scent of damp earth.
 """
 cubes = [
-{ id = "1", posx = "0", posy = "0", exits = [ { toarea = "City", toroom ="Inn", tocubeid = "01", fromexit = "East" },
-
-{ toarea = "City", toroom ="Market", tocubeid = "01", fromexit = "North" },
-
+{ id = "1", posx = "0", posy = "0", type = "door",
+exits = [ { toarea = "City", toroom ="Inn", tocubeid = "2"}
  ] },
 
-{ id = "02", posx = "0", posy = "1" },
-{ id = "03", posx = "0", posy = "2" },
-{ id = "04", posx = "0", posy = "3" },
-{ id = "05", posx = "0", posy = "4" },
+{ id = "2", posx = "0", posy = "1" },
+{ id = "3", posx = "0", posy = "2" },
+{ id = "4", posx = "0", posy = "3" },
+{ id = "5", posx = "0", posy = "4" },
 ]
