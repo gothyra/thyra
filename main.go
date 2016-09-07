@@ -39,11 +39,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	roomsMap := make(map[string]map[string][][]int)
+	roomsMap := make(map[string]map[string][][]game.Cube)
 	for _, area := range server.Areas {
-		roomsMap[area.Name] = make(map[string][][]int)
+		roomsMap[area.Name] = make(map[string][][]game.Cube)
 		for _, room := range area.Rooms {
-			roomsMap[area.Name][room.Name] = server.CreateRoom(area.Name, room.Name)
+			roomsMap[area.Name][room.Name] = server.CreateRoom_as_cubes(area.Name, room.Name)
+
 		}
 	}
 
@@ -88,7 +89,7 @@ func handleConnection(
 	addchan chan<- game.Client,
 	rmchan chan<- game.Client,
 	server *game.Server,
-	roomsMap map[string]map[string][][]int,
+	roomsMap map[string]map[string][][]game.Cube,
 ) {
 	bufc := bufio.NewReader(c)
 	defer c.Close()
