@@ -33,5 +33,4 @@ type Exit struct {
 	ToArea   string `toml:"toarea"`
 	ToRoom   string `toml:"toroom"`
 	ToCubeID string `toml:"tocubeid"`
-	FromExit string `toml:"fromexit"`
 }
