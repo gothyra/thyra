@@ -26,6 +26,7 @@ type Cube struct {
 	POSX  string `toml:"posx"`
 	POSY  string `toml:"posy"`
 	Exits []Exit `toml:"exits"`
+	Type  string `toml:"type"`
 }
 
 type Exit struct {
