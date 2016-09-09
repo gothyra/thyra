@@ -221,6 +221,21 @@ func (s *Server) OnlinePlayers() []string {
 	return online
 }
 
+func (s *Server) PlayerList() []Player {
+
+	s.onlineLock.RLock()
+	defer s.onlineLock.RUnlock()
+	plist := []Player{}
+	for _, nickname := range s.OnlinePlayers() {
+
+		plist = append(plist, s.players[nickname])
+
+	}
+
+	return plist
+
+}
+
 func (s *Server) MapList() []string {
 	s.onlineLock.RLock()
 	defer s.onlineLock.RUnlock()
@@ -240,57 +255,6 @@ func (s *Server) WriteLinesFrom(conn net.Conn, ch <-chan string) {
 			return
 		}
 	}
-}
-
-func (s *Server) CreateRoom(area, room string) [][]int {
-
-	biggestx := 0
-	biggesty := 0
-	biggest := 0
-
-	roomCubes := []Cube{}
-	for i := range s.Areas[area].Rooms {
-		if s.Areas[area].Rooms[i].Name == room {
-			roomCubes = s.Areas[area].Rooms[i].Cubes
-			break
-		}
-	}
-
-	for nick := range roomCubes {
-		posx, _ := strconv.Atoi(roomCubes[nick].POSX)
-		if posx > biggestx {
-			biggestx = posx
-		}
-
-		posy, _ := strconv.Atoi(roomCubes[nick].POSY)
-		if posy > biggesty {
-			biggesty = posy
-		}
-
-	}
-
-	if biggestx < biggesty {
-		biggest = biggesty
-	} else {
-		biggest = biggestx
-	}
-	biggest++
-
-	maparray := make([][]int, biggest)
-	for i := range maparray {
-		maparray[i] = make([]int, biggest)
-	}
-
-	for z := range roomCubes {
-		posx, _ := strconv.Atoi(roomCubes[z].POSX)
-		posy, _ := strconv.Atoi(roomCubes[z].POSY)
-		if roomCubes[z].ID != "" {
-			id, _ := strconv.Atoi(roomCubes[z].ID)
-			maparray[posx][posy] = id
-		}
-	}
-
-	return maparray
 }
 
 func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
@@ -356,16 +320,19 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 
 	case "e", "east":
-		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[0][1])
-		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)[0][1])
+		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)
 		if newpos > 0 {
 
 			c.Player.Position = strconv.Itoa(newpos)
+
+			delete(s.players, c.Player.Nickname)
+			s.players[c.Player.Nickname] = *c.Player
 			c.Player.Area = posarray[0][0]
 			c.Player.Room = posarray[0][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 
-			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Nickname].Position)
 			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 		} else {
 			c.WriteToUser("You can't go that way\n")
@@ -375,8 +342,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[1][1])
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 		if newpos > 0 {
-
 			c.Player.Position = strconv.Itoa(newpos)
+
+			delete(s.players, c.Player.Nickname)
+			s.players[c.Player.Nickname] = *c.Player
 			c.Player.Area = posarray[1][0]
 			c.Player.Room = posarray[1][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
@@ -390,8 +359,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[2][1])
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 		if newpos > 0 {
-
 			c.Player.Position = strconv.Itoa(newpos)
+
+			delete(s.players, c.Player.Nickname)
+			s.players[c.Player.Nickname] = *c.Player
 			c.Player.Area = posarray[2][0]
 			c.Player.Room = posarray[2][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
@@ -406,8 +377,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[3][1])
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 		if newpos > 0 {
-
 			c.Player.Position = strconv.Itoa(newpos)
+
+			delete(s.players, c.Player.Nickname)
+			s.players[c.Player.Nickname] = *c.Player
 			c.Player.Area = posarray[3][0]
 			c.Player.Room = posarray[3][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
@@ -432,6 +405,14 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 	case "where":
 		updateMap(s, c, c.Player.Position, map_array)
+
+	case "players":
+
+		for _, players := range s.PlayerList() {
+
+			c.WriteToUser("Name : " + players.Nickname + "\n")
+			c.WriteToUser("Position : " + players.Area + " - " + players.Room + " - " + players.Position + "\n\n")
+		}
 
 	case "list":
 		for i := range map_array {
@@ -466,7 +447,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 func printToUser(s *Server, c Client, map_array [][]Cube, posarray [][]string, areaID, room string) {
 
 	buffexits := printExits(c, posarray)
-	buff := updateMap(s, c, c.Player.Position, map_array)
+	buff := updateMap(s, c, s.players[c.Player.Nickname].Position, map_array)
 	buffintro := printIntro(s, c, areaID, room)
 
 	data := [][]string{

@@ -5,7 +5,6 @@ import (
 	"strconv"
 )
 
-// Briskei ta exits analoga me to position tou user, default possition otan kanei register einai 1
 func FindExits(s [][]Cube, area, room, pos string) [][]string {
 
 	exitarr := [][]string{}
@@ -18,8 +17,6 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 	exitarr = append(exitarr, west)
 	exitarr = append(exitarr, north)
 	exitarr = append(exitarr, south)
-
-	//roomCubes := server.Areas[area].Rooms[room].Cubes
 
 	east_id := 0
 	west_id := 0
@@ -101,8 +98,6 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 	// [0] East, [1] West, [2] North, [3] South
 	// Second array holds the cube we will end up following the direction
 	// [][0] ToArea, [][1] ToCubeID, [][2] ToRoom
-
-	//	fmt.Printf("%v", exitarr)
 
 	return exitarr
 }
