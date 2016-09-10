@@ -158,7 +158,7 @@ func handleConnection(
 		rmchan <- client
 	}()
 	io.WriteString(c, fmt.Sprintf("Welcome, %s!\n", client.Player.Nickname))
-	server.PlayerLoggedIn(client.Nickname)
+	server.ClientLoggedIn(client)
 
 	// I/O
 	go client.ReadLinesInto(msgchan, server)
