@@ -3,8 +3,6 @@ package game
 import (
 	"bytes"
 	"fmt"
-	"github.com/gothyra/toml"
-	"github.com/olekukonko/tablewriter"
 	"io"
 	"io/ioutil"
 	"log"
@@ -14,6 +12,9 @@ import (
 	"regexp"
 	"strconv"
 	"sync"
+
+	"github.com/gothyra/toml"
+	"github.com/olekukonko/tablewriter"
 )
 
 type Config struct {
@@ -29,13 +30,13 @@ type Server struct {
 	DefaultArea   Area
 	Config        Config
 	onlineLock    sync.RWMutex
-	onlinePlayers map[string]struct{}
+	onlineClients map[Client]struct{}
 }
 
 func NewServer(staticDir string) *Server {
 	return &Server{
 		players:       make(map[string]Player),
-		onlinePlayers: make(map[string]struct{}),
+		onlineClients: make(map[Client]struct{}),
 		Areas:         make(map[string]Area),
 		staticDir:     staticDir,
 	}
@@ -193,47 +194,32 @@ func (s *Server) SavePlayer(player Player) bool {
 
 func (s *Server) OnExit(client Client) {
 	s.SavePlayer(*client.Player)
-	s.PlayerLoggedOut(client.Nickname)
+	s.ClientLoggedOut(client)
 	client.WriteLineToUser(fmt.Sprintf("Good bye %s", client.Player.Nickname))
 }
 
-func (s *Server) PlayerLoggedIn(nickname string) {
+func (s *Server) ClientLoggedIn(client Client) {
 	s.onlineLock.Lock()
-	s.onlinePlayers[nickname] = struct{}{}
+	s.onlineClients[client] = struct{}{}
 	s.onlineLock.Unlock()
 }
 
-func (s *Server) PlayerLoggedOut(nickname string) {
+func (s *Server) ClientLoggedOut(client Client) {
 	s.onlineLock.Lock()
-	delete(s.onlinePlayers, nickname)
+	delete(s.onlineClients, client)
 	s.onlineLock.Unlock()
 }
 
-func (s *Server) OnlinePlayers() []string {
+func (s *Server) OnlineClients() []Client {
 	s.onlineLock.RLock()
 	defer s.onlineLock.RUnlock()
 
-	online := []string{}
-	for nick := range s.onlinePlayers {
-		online = append(online, nick)
+	online := []Client{}
+	for online_clients := range s.onlineClients {
+		online = append(online, online_clients)
 	}
 
 	return online
-}
-
-func (s *Server) PlayerList() []Player {
-
-	s.onlineLock.RLock()
-	defer s.onlineLock.RUnlock()
-	plist := []Player{}
-	for _, nickname := range s.OnlinePlayers() {
-
-		plist = append(plist, s.players[nickname])
-
-	}
-
-	return plist
-
 }
 
 func (s *Server) MapList() []string {
@@ -406,12 +392,12 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	case "where":
 		updateMap(s, c, c.Player.Position, map_array)
 
-	case "players":
+	case "clients":
+		for _, players := range s.OnlineClients() {
 
-		for _, players := range s.PlayerList() {
+			fmt.Printf("%v\n", players)
+			fmt.Print("Name : " + players.Player.Nickname + "\n")
 
-			c.WriteToUser("Name : " + players.Nickname + "\n")
-			c.WriteToUser("Position : " + players.Area + " - " + players.Room + " - " + players.Position + "\n\n")
 		}
 
 	case "list":
