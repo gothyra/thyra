@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/gothyra/toml"
@@ -30,13 +31,13 @@ type Server struct {
 	DefaultArea   Area
 	Config        Config
 	onlineLock    sync.RWMutex
-	onlineClients map[Client]struct{}
+	onlineClients map[string]*Client
 }
 
 func NewServer(staticDir string) *Server {
 	return &Server{
 		players:       make(map[string]Player),
-		onlineClients: make(map[Client]struct{}),
+		onlineClients: make(map[string]*Client),
 		Areas:         make(map[string]Area),
 		staticDir:     staticDir,
 	}
@@ -194,19 +195,19 @@ func (s *Server) SavePlayer(player Player) bool {
 
 func (s *Server) OnExit(client Client) {
 	s.SavePlayer(*client.Player)
-	s.ClientLoggedOut(client)
+	s.ClientLoggedOut(client.Nickname)
 	client.WriteLineToUser(fmt.Sprintf("Good bye %s", client.Player.Nickname))
 }
 
-func (s *Server) ClientLoggedIn(client Client) {
+func (s *Server) ClientLoggedIn(name string, client Client) {
 	s.onlineLock.Lock()
-	s.onlineClients[client] = struct{}{}
+	s.onlineClients[name] = &client
 	s.onlineLock.Unlock()
 }
 
-func (s *Server) ClientLoggedOut(client Client) {
+func (s *Server) ClientLoggedOut(name string) {
 	s.onlineLock.Lock()
-	delete(s.onlineClients, client)
+	delete(s.onlineClients, name)
 	s.onlineLock.Unlock()
 }
 
@@ -215,8 +216,8 @@ func (s *Server) OnlineClients() []Client {
 	defer s.onlineLock.RUnlock()
 
 	online := []Client{}
-	for online_clients := range s.onlineClients {
-		online = append(online, online_clients)
+	for _, online_clients := range s.onlineClients {
+		online = append(online, *online_clients)
 	}
 
 	return online
@@ -300,6 +301,18 @@ func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
 func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map[string][][]Cube) {
 	map_array := roomsMap[c.Player.Area][c.Player.Room]
 
+	lineParts := strings.SplitN(command, " ", 2)
+
+	var args string
+	if len(lineParts) > 0 {
+		command = lineParts[0]
+	}
+	if len(lineParts) > 1 {
+		args = lineParts[1]
+	}
+
+	fmt.Print("Command: " + command + "\nArgs: " + args + "\n")
+
 	switch command {
 	case "l", "look", "map":
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
@@ -381,11 +394,6 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		s.OnExit(c)
 		c.Conn.Close()
 
-	case "online":
-		for _, nickname := range s.OnlinePlayers() {
-			c.WriteToUser(nickname + "\n")
-		}
-
 	case "fight":
 		do_fight(c)
 
@@ -394,11 +402,12 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 	case "clients":
 		for _, players := range s.OnlineClients() {
-
-			fmt.Printf("%v\n", players)
 			fmt.Print("Name : " + players.Player.Nickname + "\n")
 
 		}
+
+	case "tell":
+		c.do_tell(s.OnlineClients(), args, c.Player.Nickname)
 
 	case "list":
 		for i := range map_array {
