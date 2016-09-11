@@ -44,7 +44,6 @@ func main() {
 		roomsMap[area.Name] = make(map[string][][]game.Cube)
 		for _, room := range area.Rooms {
 			roomsMap[area.Name][room.Name] = server.CreateRoom_as_cubes(area.Name, room.Name)
-
 		}
 	}
 
