@@ -31,6 +31,15 @@ func (c Client) WriteLineToUser(msg string) {
 	io.WriteString(c.Conn, msg+"\n\r")
 }
 
+func (c Client) do_tell(client []Client, msg string, name string) {
+
+	for i := range client {
+		io.WriteString(client[i].Conn, "\n"+name+": "+msg+"\n\r")
+
+	}
+
+}
+
 func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 	bufc := bufio.NewReader(c.Conn)
 
@@ -45,20 +54,10 @@ func (c Client) ReadLinesInto(ch chan<- string, server *Server) {
 		if userLine == "" {
 			continue
 		}
-		lineParts := strings.SplitN(userLine, " ", 2)
-
-		var command, commandText string
-		if len(lineParts) > 0 {
-			command = lineParts[0]
-		}
-		if len(lineParts) > 1 {
-			commandText = lineParts[1]
-		}
 
 		select {
-		case c.Cmd <- command:
+		case c.Cmd <- userLine:
 		}
-		// TODO: Use this
-		_ = commandText
+
 	}
 }

@@ -158,7 +158,7 @@ func handleConnection(
 		rmchan <- client
 	}()
 	io.WriteString(c, fmt.Sprintf("Welcome, %s!\n", client.Player.Nickname))
-	server.ClientLoggedIn(client)
+	server.ClientLoggedIn(client.Nickname, client)
 
 	// I/O
 	go client.ReadLinesInto(msgchan, server)
@@ -167,6 +167,7 @@ func handleConnection(
 		case cmd := <-cmdCh:
 			server.HandleCommand(client, cmd, roomsMap)
 		}
+
 	}
 }
 
