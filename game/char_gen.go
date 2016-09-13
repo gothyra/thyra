@@ -104,8 +104,4 @@ func create_character() {
 
 }
 
-func main() {
-	fmt.Println("Welcome to the Ultimate RPG!\n\n")
-	create_character()
 
-}
