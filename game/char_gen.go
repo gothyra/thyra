@@ -22,20 +22,6 @@ import (
 και σύνολο 78 πόντων να μοιραστούν στα 6 χαρακτηριστικά.
 */
 // ------------Standard values-----------
-type PC struct {
-	STR int `xml:"str"`
-	DEX int `xml:"dex"`
-	CON int `xml:"con"`
-	INT int `xml:"int"`
-	WIS int `xml:"wis"`
-	CHA int `xml:"cha"`
-}
-
-func random(min, max int) int {
-	max = max + 1
-	rand.Seed(time.Now().UTC().UnixNano()) // Μετράει πολύ μια sleep τελικά
-	return rand.Intn(max-min) + min
-}
 
 func create_character() {
 	tokens := []int{3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 0, 0} // Τα κουπόνια με τις τιμές τους
@@ -80,11 +66,6 @@ func create_character() {
 			tokens[numb] = tokens[len(tokens)-1]
 			tokens = tokens[:len(tokens)-1]
 
-			for j := 0; j < len(tokens); j++ {
-				fmt.Print(tokens[j], " ")
-			}
-			fmt.Println("\nSTR = ", *attribute)
-
 		}
 		sum += *attribute
 	}
@@ -94,7 +75,7 @@ func create_character() {
 		fmt.Print("-")
 	}
 	// Από εδώ και κάτω είναι τι μας ενδιαφέρει να φαίνεται στον παίχτη
-	fmt.Println("\nAnonymous character has the following attributes:")
+	fmt.Println("\n\nAnonymous character has the following attributes:")
 	fmt.Println("STR = ", player.STR)
 	fmt.Println("DEX = ", player.DEX)
 	fmt.Println("CON = ", player.CON)
@@ -103,5 +84,3 @@ func create_character() {
 	fmt.Println("CHA = ", player.CHA)
 
 }
-
-

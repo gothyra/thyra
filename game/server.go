@@ -382,6 +382,8 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 	case "fight":
 		do_fight(c)
+	case "create":
+		create_character()
 
 	case "where":
 		updateMap(s, c, c.Player.Position, map_array)

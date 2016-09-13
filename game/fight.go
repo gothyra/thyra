@@ -58,6 +58,7 @@ func NewPC() *PC {
 // μια random οπως την ξερουμε
 func random(min, max int) int {
 	max = max + 1
+	rand.Seed(time.Now().UTC().UnixNano()) // Μετράει πολύ μια sleep τελικά
 	return rand.Intn(max-min) + min
 }
 
