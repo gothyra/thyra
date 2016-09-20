@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/gothyra/termbox-go"
 	"github.com/gothyra/thyra/game"
 )
 
@@ -204,6 +205,11 @@ out:
 	log.Printf("Player %q got connected\n", client.Player.Nickname)
 	server.ClientLoggedIn(client.Nickname, client)
 	client.ReadLinesInto(stopCh)
+	err := termbox.Init(client)
+	if err != nil {
+		panic(err)
+	}
+	defer termbox.Close(client)
 	log.Printf("Connection from %v closed.\n", c.RemoteAddr())
 }
 

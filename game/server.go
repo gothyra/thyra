@@ -298,8 +298,6 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		args = lineParts[1]
 	}
 
-	fmt.Print("Command: " + command + "\nArgs: " + args + "\n")
-
 	switch command {
 	case "l", "look", "map":
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
@@ -429,6 +427,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 func printToUser(s *Server, c Client, map_array [][]Cube, posarray [][]string, areaID, room string) {
 
+	c.WriteToUser("\u001B[2J")
 	buffexits := printExits(c, posarray)
 	buff := updateMap(s, c, s.players[c.Player.Nickname].Position, map_array)
 	buffintro := printIntro(s, c, areaID, room)
