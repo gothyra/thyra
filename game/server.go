@@ -286,6 +286,7 @@ func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
 
 // TODO: Remove from Server
 func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map[string][][]Cube) {
+
 	map_array := roomsMap[c.Player.Area][c.Player.Room]
 
 	lineParts := strings.SplitN(command, " ", 2)
@@ -297,8 +298,6 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	if len(lineParts) > 1 {
 		args = lineParts[1]
 	}
-
-	fmt.Print("Command: " + command + "\nArgs: " + args + "\n")
 
 	switch command {
 	case "l", "look", "map":
@@ -396,6 +395,9 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 	case "tell":
 		c.do_tell(s.OnlineClients(), args, c.Player.Nickname)
+
+	case "edit":
+		Go_editbox(c)
 
 	case "list":
 		for i := range map_array {

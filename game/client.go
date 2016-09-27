@@ -2,6 +2,7 @@ package game
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -13,6 +14,8 @@ type Client struct {
 	Nickname string
 	Player   *Player
 	Cmd      chan<- ClientRequest
+	Buff     bytes.Buffer
+	Event    chan<- input_event
 }
 
 func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest) Client {
@@ -58,5 +61,5 @@ func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
 			return
 		}
 
-	}
+	} // end for
 }

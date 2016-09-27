@@ -201,6 +201,8 @@ out:
 
 	client := game.NewClient(c, &player, clientCh)
 
+	//game.Go_editbox(client)
+
 	log.Printf("Player %q got connected\n", client.Player.Nickname)
 	server.ClientLoggedIn(client.Nickname, client)
 	client.ReadLinesInto(stopCh)
