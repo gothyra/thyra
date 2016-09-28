@@ -1,9 +1,10 @@
 package game
 
 import (
-	"fmt"
-	"github.com/mattn/go-runewidth"
+	"bufio"
 	"unicode/utf8"
+
+	"github.com/mattn/go-runewidth"
 )
 
 func tbprint(x, y int, fg, bg Attribute, msg string) {
@@ -236,7 +237,14 @@ func redraw_all(c Client) {
 	midy := h/2 + 12
 	midx := (w-edit_box_width)/2 - 50
 
+	//io.WriteString(c.Conn, c.ServerBuff.String())
+
 	// unicode box drawing chars around the edit box
+
+	reply := <-c.Reply
+	rd := bufio.NewReader(&reply)
+
+	// Editbox
 	SetCell(midx-1, midy, '│', coldef, coldef)
 	SetCell(midx+edit_box_width, midy, '│', coldef, coldef)
 	SetCell(midx-1, midy-1, '┌', coldef, coldef)
@@ -248,8 +256,20 @@ func redraw_all(c Client) {
 
 	edit_box.Draw(midx, midy, edit_box_width, 1)
 	SetCursor(midx+edit_box.CursorX(), midy, c)
+	counter := 20
+	for {
+		l, _, err := rd.ReadLine()
+		if err != nil {
+			break
+		}
+		line := string(l)
+		tbprint(midx+100, midy-counter, coldef, coldef, line)
 
-	//tbprint(midx+6, midy+3, coldef, coldef, "Press ESC to quit")
+		counter--
+	}
+
+	//tbprint(midx, midy-10, coldef, coldef, replyevents)
+
 	Flush(c)
 }
 
@@ -261,49 +281,55 @@ func Go_editbox(c Client) {
 	defer Close(c)
 	SetInputMode(InputEsc, c)
 
-	redraw_all(c)
-mainloop:
 	for {
-		switch ev := PollEvent(); ev.Type {
-		case EventKey:
-			switch ev.Key {
-			case KeyEsc:
-				break mainloop
-			case KeyArrowLeft, KeyCtrlB:
-				edit_box.MoveCursorOneRuneBackward()
-			case KeyArrowRight, KeyCtrlF:
-				edit_box.MoveCursorOneRuneForward()
-			case KeyBackspace, KeyBackspace2:
-				edit_box.DeleteRuneBackward()
-			case KeyDelete, KeyCtrlD:
-				edit_box.DeleteRuneForward()
-			case KeyTab:
-				edit_box.InsertRune('\t')
-			case KeySpace:
-				edit_box.InsertRune(' ')
-			case KeyCtrlK:
-				edit_box.DeleteTheRestOfTheLine()
-			case KeyHome, KeyCtrlA:
-				edit_box.MoveCursorToBeginningOfTheLine()
-			case KeyEnd, KeyCtrlE:
-				edit_box.MoveCursorToEndOfTheLine()
-			case KeyEnter:
-				for range edit_box.text {
-					edit_box.DeleteRuneBackward()
-				}
-
-				fmt.Printf("%s", edit_box.text)
-
-			default:
-				if ev.Ch != 0 {
-					edit_box.InsertRune(ev.Ch)
-				}
-			}
-		case EventError:
-			panic(ev.Err)
-		}
-
 		redraw_all(c)
 	}
+
+	//mainloop:
+	//for {
+
+	//	edit_box.
+
+	/*switch ev := PollEvent(c); ev.Type {
+	case EventKey:
+		switch ev.Key {
+		case KeyEsc:
+			break mainloop
+		case KeyArrowLeft, KeyCtrlB:
+			edit_box.MoveCursorOneRuneBackward()
+		case KeyArrowRight, KeyCtrlF:
+			edit_box.MoveCursorOneRuneForward()
+		case KeyBackspace, KeyBackspace2:
+			edit_box.DeleteRuneBackward()
+		case KeyDelete, KeyCtrlD:
+			edit_box.DeleteRuneForward()
+		case KeyTab:
+			edit_box.InsertRune('\t')
+		case KeySpace:
+			edit_box.InsertRune(' ')
+		case KeyCtrlK:
+			edit_box.DeleteTheRestOfTheLine()
+		case KeyHome, KeyCtrlA:
+			edit_box.MoveCursorToBeginningOfTheLine()
+		case KeyEnd, KeyCtrlE:
+			edit_box.MoveCursorToEndOfTheLine()
+		case KeyEnter:
+			for range edit_box.text {
+				edit_box.DeleteRuneBackward()
+			}
+
+			//c.WriteLineToUser(edit_box.text.String())
+
+		default:
+			if ev.Ch != 0 {
+				edit_box.InsertRune(ev.Ch)
+			}
+		}
+	case EventError:
+		panic(ev.Err)
+	}
+	*/
+
+	// /}
 
 }

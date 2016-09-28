@@ -63,7 +63,7 @@ var (
 	cursor_y     = cursor_hidden
 	foreground   = ColorDefault
 	background   = ColorDefault
-	inbuf        = make([]byte, 0, 64)
+	//	inbuf      = make([]byte, 0, 64)
 	//outbuf         Client.Buff
 	sigwinch       = make(chan os.Signal, 1)
 	sigio          = make(chan os.Signal, 1)
@@ -434,8 +434,8 @@ func parse_escape_sequence(event *Event, buf []byte) (int, bool) {
 	return parse_mouse_event(event, bufstr)
 }
 
-func extract_raw_event(data []byte, event *Event) bool {
-	if len(inbuf) == 0 {
+func extract_raw_event(data []byte, event *Event, c Client) bool {
+	if len(c.Inbuff) == 0 {
 		return false
 	}
 
@@ -444,9 +444,9 @@ func extract_raw_event(data []byte, event *Event) bool {
 		return false
 	}
 
-	n = copy(data, inbuf)
-	copy(inbuf, inbuf[n:])
-	inbuf = inbuf[:len(inbuf)-n]
+	n = copy(data, c.Inbuff)
+	copy(c.Inbuff, c.Inbuff[n:])
+	c.Inbuff = c.Inbuff[:len(c.Inbuff)-n]
 
 	event.N = n
 	event.Type = EventRaw

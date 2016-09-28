@@ -15,15 +15,17 @@ type Client struct {
 	Player   *Player
 	Cmd      chan<- ClientRequest
 	Buff     bytes.Buffer
-	Event    chan<- input_event
+	Inbuff   []byte
+	Reply    chan bytes.Buffer
 }
 
-func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest) Client {
+func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest, reply chan bytes.Buffer) Client {
 	return Client{
 		Conn:     c,
 		Nickname: player.Nickname,
 		Player:   player,
 		Cmd:      cmd,
+		Reply:    reply,
 	}
 }
 
@@ -48,15 +50,20 @@ func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
 	for {
 		line, err := bufc.ReadString('\n')
 		if err != nil {
+
 			break
+
 		}
 		line = strings.TrimSpace(line)
 		if len(line) == 0 {
 			continue
 		}
 
+		fmt.Println(line)
+
 		select {
 		case c.Cmd <- ClientRequest{Client: c, Cmd: line}:
+
 		case <-stopCh:
 			return
 		}

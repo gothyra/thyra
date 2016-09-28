@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -55,25 +56,25 @@ func main() {
 	log.Printf("Listen on: %s", ln.Addr())
 
 	var wg sync.WaitGroup
-	stopCh := make(chan struct{})
+	quit := make(chan struct{})
 	regRequest := make(chan game.LoginRequest, 1000)
 	clientRequest := make(chan game.ClientRequest, 1000)
 
 	wg.Add(1)
-	go handleRegistrations(*server, wg, stopCh, regRequest)
+	go handleRegistrations(*server, wg, quit, regRequest)
 
 	wg.Add(1)
-	go acceptConnections(ln, server, wg, stopCh, clientRequest, regRequest)
+	go acceptConnections(ln, server, wg, quit, clientRequest, regRequest)
 
 	wg.Add(1)
-	go broadcast(*server, wg, stopCh, clientRequest, roomsMap)
+	go broadcast(*server, wg, quit, clientRequest, roomsMap)
 
 	wg.Wait()
 }
 
 // handleRegistrations accepts requests for registration and replies back if the requested
 // username exists or not.
-func handleRegistrations(server game.Server, wg sync.WaitGroup, stopCh chan struct{}, regRequest chan game.LoginRequest) {
+func handleRegistrations(server game.Server, wg sync.WaitGroup, quit chan struct{}, regRequest chan game.LoginRequest) {
 	defer wg.Done()
 
 	for {
@@ -81,7 +82,7 @@ func handleRegistrations(server game.Server, wg sync.WaitGroup, stopCh chan stru
 		var err error
 
 		select {
-		case <-stopCh:
+		case <-quit:
 			return
 		case request := <-regRequest:
 			exists, err = server.LoadPlayer(request.Username)
@@ -92,7 +93,7 @@ func handleRegistrations(server game.Server, wg sync.WaitGroup, stopCh chan stru
 
 			select {
 			case request.Reply <- exists:
-			case <-stopCh:
+			case <-quit:
 				return
 			}
 
@@ -104,7 +105,7 @@ func acceptConnections(
 	ln net.Listener,
 	server *game.Server,
 	wg sync.WaitGroup,
-	stopCh <-chan struct{},
+	quit <-chan struct{},
 	clientCh chan<- game.ClientRequest,
 	regRequest chan game.LoginRequest,
 ) {
@@ -118,10 +119,10 @@ func acceptConnections(
 			continue
 		}
 		wg.Add(1)
-		go handleConnection(conn, server, wg, stopCh, clientCh, regRequest)
+		go handleConnection(conn, server, wg, quit, clientCh, regRequest)
 
 		select {
-		case <-stopCh:
+		case <-quit:
 			return
 		default:
 		}
@@ -133,7 +134,7 @@ func handleConnection(
 	c net.Conn,
 	server *game.Server,
 	wg sync.WaitGroup,
-	stopCh <-chan struct{},
+	quit <-chan struct{},
 	clientCh chan<- game.ClientRequest,
 	regRequest chan<- game.LoginRequest,
 ) {
@@ -170,12 +171,12 @@ out:
 
 		select {
 		case regRequest <- game.LoginRequest{Username: username, Conn: c, Reply: replyCh}:
-		case <-stopCh:
+		case <-quit:
 		}
 
 		select {
 		case exists = <-replyCh:
-		case <-stopCh:
+		case <-quit:
 		}
 
 		if exists {
@@ -199,13 +200,14 @@ out:
 		return
 	}
 
-	client := game.NewClient(c, &player, clientCh)
+	reply := make(chan bytes.Buffer, 1)
 
-	//game.Go_editbox(client)
+	client := game.NewClient(c, &player, clientCh, reply)
+	go game.Go_editbox(client)
 
 	log.Printf("Player %q got connected\n", client.Player.Nickname)
 	server.ClientLoggedIn(client.Nickname, client)
-	client.ReadLinesInto(stopCh)
+	client.ReadLinesInto(quit)
 	log.Printf("Connection from %v closed.\n", c.RemoteAddr())
 }
 
@@ -223,7 +225,7 @@ func promptMessage(c net.Conn, bufc *bufio.Reader, message string) string {
 func broadcast(
 	server game.Server,
 	wg sync.WaitGroup,
-	stopCh <-chan struct{},
+	quit <-chan struct{},
 	clientCh <-chan game.ClientRequest,
 	roomsMap map[string]map[string][][]game.Cube,
 ) {
@@ -235,7 +237,7 @@ func broadcast(
 		case client := <-clientCh:
 			server.HandleCommand(client.Client, client.Cmd, roomsMap)
 
-		case <-stopCh:
+		case <-quit:
 			return
 		}
 	}

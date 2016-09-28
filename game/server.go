@@ -3,7 +3,7 @@ package game
 import (
 	"bytes"
 	"fmt"
-	"io"
+	//"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,7 +14,7 @@ import (
 	"sync"
 
 	"github.com/gothyra/toml"
-	"github.com/olekukonko/tablewriter"
+	//"github.com/olekukonko/tablewriter"
 )
 
 type Config struct {
@@ -320,7 +320,9 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Nickname].Position)
 			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 		} else {
-			c.WriteToUser("You can't go that way\n")
+
+			msg := "You can't go that way"
+			log.Println(msg)
 		}
 
 	case "w", "west":
@@ -338,7 +340,8 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 		} else {
-			c.WriteToUser("You can't go that way\n")
+			msg := "You can't go that way"
+			log.Println(msg)
 		}
 
 	case "n", "north":
@@ -355,7 +358,8 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 		} else {
-			c.WriteToUser("You can't go that way\n")
+			msg := "You can't go that way"
+			log.Println(msg)
 		}
 
 	case "s", "south":
@@ -372,9 +376,9 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
 		} else {
-			c.WriteToUser("You can't go that way\n")
+			msg := "You can't go that way"
+			log.Println(msg)
 		}
-
 	case "q", "quit":
 		s.OnExit(c)
 		c.Conn.Close()
@@ -384,9 +388,6 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	case "create":
 		create_character()
 
-	case "where":
-		updateMap(s, c, c.Player.Position, map_array)
-
 	case "clients":
 		for _, players := range s.OnlineClients() {
 			fmt.Print("Name : " + players.Player.Nickname + "\n")
@@ -395,9 +396,6 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 	case "tell":
 		c.do_tell(s.OnlineClients(), args, c.Player.Nickname)
-
-	case "edit":
-		Go_editbox(c)
 
 	case "list":
 		for i := range map_array {
@@ -424,26 +422,36 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		}
 
 	default:
-		c.WriteLineToUser("Huh?")
+		//c.WriteLineToUser("Huh?")
 	}
-	c.WriteToUser("\n" + c.Player.Nickname + ": ")
 }
 
 func printToUser(s *Server, c Client, map_array [][]Cube, posarray [][]string, areaID, room string) {
 
-	buffexits := printExits(c, posarray)
-	buff := updateMap(s, c, s.players[c.Player.Nickname].Position, map_array)
-	buffintro := printIntro(s, c, areaID, room)
+	//buffexits := printExits(c, posarray)
 
-	data := [][]string{
-		[]string{buffintro.String(), "", "", buff.String()},
-	}
+	bufmap := updateMap(s, c, s.players[c.Player.Nickname].Position, map_array)
 
-	table := tablewriter.NewWriter(io.MultiWriter(c.Conn))
-	table.SetHeader([]string{"Description", "  ", "  ", "Map"})
-	table.SetFooter([]string{" ", " ", " ", buffexits.String()}) // Add Footer
-	table.SetBorder(false)                                       // Set Border to false
-	table.AppendBulk(data)                                       // Add Bulk Data
-	table.Render()
+	c.Reply <- bufmap
+
+	//buffintro := printIntro(s, c, areaID, room)
+
+	/*
+		data := [][]string{
+			[]string{buffintro.String(), "", "", buff.String()},
+		}
+
+		table := tablewriter.NewWriter(io.MultiWriter(c.Conn))
+		table.SetHeader([]string{"Description", "  ", "  ", "Map"})
+		table.SetFooter([]string{" ", " ", " ", buffexits.String()}) // Add Footer
+		table.SetBorder(false)                                       // Set Border to false
+		table.AppendBulk(data)                                       // Add Bulk Data
+		table.Render()
+
+	*/
+
+	//c.WriteLineToUser(buff.String())
+
+	//
 
 }

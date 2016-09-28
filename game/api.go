@@ -35,7 +35,7 @@ func Init(c Client) error {
 		return err
 	}
 
-	err = setup_term()
+	err = setup_term(c)
 	if err != nil {
 		return fmt.Errorf("termbox: error while reading terminfo data: %v", err)
 	}
@@ -270,13 +270,13 @@ func ParseEvent(data []byte) Event {
 // vary on different platforms.
 //
 // NOTE: This API is experimental and may change in future.
-func PollRawEvent(data []byte) Event {
+func PollRawEvent(data []byte, c Client) Event {
 	if len(data) == 0 {
 		panic("len(data) >= 1 is a requirement")
 	}
 
 	var event Event
-	if extract_raw_event(data, &event) {
+	if extract_raw_event(data, &event, c) {
 		return event
 	}
 
@@ -287,9 +287,9 @@ func PollRawEvent(data []byte) Event {
 				return Event{Type: EventError, Err: ev.err}
 			}
 
-			inbuf = append(inbuf, ev.data...)
+			c.Inbuff = append(c.Inbuff, ev.data...)
 			input_comm <- ev
-			if extract_raw_event(data, &event) {
+			if extract_raw_event(data, &event, c) {
 				return event
 			}
 		case <-interrupt_comm:
@@ -305,15 +305,15 @@ func PollRawEvent(data []byte) Event {
 }
 
 // Wait for an event and return it. This is a blocking function call.
-func PollEvent() Event {
+func PollEvent(c Client) Event {
 	var event Event
 
 	// try to extract event from input buffer, return on success
 	event.Type = EventKey
-	ok := extract_event(inbuf, &event)
+	ok := extract_event(c.Inbuff, &event)
 	if event.N != 0 {
-		copy(inbuf, inbuf[event.N:])
-		inbuf = inbuf[:len(inbuf)-event.N]
+		copy(c.Inbuff, c.Inbuff[event.N:])
+		c.Inbuff = c.Inbuff[:len(c.Inbuff)-event.N]
 	}
 	if ok {
 		return event
@@ -326,12 +326,12 @@ func PollEvent() Event {
 				return Event{Type: EventError, Err: ev.err}
 			}
 
-			inbuf = append(inbuf, ev.data...)
+			c.Inbuff = append(c.Inbuff, ev.data...)
 			input_comm <- ev
-			ok := extract_event(inbuf, &event)
+			ok := extract_event(c.Inbuff, &event)
 			if event.N != 0 {
-				copy(inbuf, inbuf[event.N:])
-				inbuf = inbuf[:len(inbuf)-event.N]
+				copy(c.Inbuff, c.Inbuff[event.N:])
+				c.Inbuff = c.Inbuff[:len(c.Inbuff)-event.N]
 			}
 			if ok {
 				return event
