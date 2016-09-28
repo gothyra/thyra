@@ -212,6 +212,10 @@ func (eb *EditBox) DeleteTheRestOfTheLine() {
 	eb.text = eb.text[:eb.cursor_boffset]
 }
 
+func (eb *EditBox) Clear() {
+	eb.text = []byte{}
+}
+
 func (eb *EditBox) InsertRune(r rune) {
 	var buf [utf8.UTFMax]byte
 	n := utf8.EncodeRune(buf[:], r)
@@ -237,12 +241,11 @@ func redraw_all(c Client) {
 	midy := h/2 + 12
 	midx := (w-edit_box_width)/2 - 50
 
-	//io.WriteString(c.Conn, c.ServerBuff.String())
-
-	// unicode box drawing chars around the edit box
-
 	reply := <-c.Reply
-	rd := bufio.NewReader(&reply)
+	rd := bufio.NewReader(&reply.world)
+
+	rdev := &reply.events
+	rintro := bufio.NewReader(&reply.intro)
 
 	// Editbox
 	SetCell(midx-1, midy, '│', coldef, coldef)
@@ -254,7 +257,6 @@ func redraw_all(c Client) {
 	fill(midx, midy-1, edit_box_width, 1, Cell{Ch: '─'})
 	fill(midx, midy+1, edit_box_width, 1, Cell{Ch: '─'})
 
-	edit_box.Draw(midx, midy, edit_box_width, 1)
 	SetCursor(midx+edit_box.CursorX(), midy, c)
 	counter := 20
 	for {
@@ -268,9 +270,23 @@ func redraw_all(c Client) {
 		counter--
 	}
 
-	//tbprint(midx, midy-10, coldef, coldef, replyevents)
+	counter2 := 20
+	for {
+		l, _, err := rintro.ReadLine()
+		if err != nil {
+			break
+		}
+		line := string(l)
+		tbprint(midx, midy-counter2, coldef, coldef, line)
+
+		counter2--
+	}
+
+	tbprint(midx, midy-10, coldef, coldef, *rdev)
+	//	edit_box.Draw(midx, midy, edit_box_width, 1)
 
 	Flush(c)
+
 }
 
 func Go_editbox(c Client) {
@@ -279,57 +295,11 @@ func Go_editbox(c Client) {
 		panic(err)
 	}
 	defer Close(c)
-	SetInputMode(InputEsc, c)
+	//SetInputMode(InputEsc, c)
 
 	for {
 		redraw_all(c)
+
 	}
-
-	//mainloop:
-	//for {
-
-	//	edit_box.
-
-	/*switch ev := PollEvent(c); ev.Type {
-	case EventKey:
-		switch ev.Key {
-		case KeyEsc:
-			break mainloop
-		case KeyArrowLeft, KeyCtrlB:
-			edit_box.MoveCursorOneRuneBackward()
-		case KeyArrowRight, KeyCtrlF:
-			edit_box.MoveCursorOneRuneForward()
-		case KeyBackspace, KeyBackspace2:
-			edit_box.DeleteRuneBackward()
-		case KeyDelete, KeyCtrlD:
-			edit_box.DeleteRuneForward()
-		case KeyTab:
-			edit_box.InsertRune('\t')
-		case KeySpace:
-			edit_box.InsertRune(' ')
-		case KeyCtrlK:
-			edit_box.DeleteTheRestOfTheLine()
-		case KeyHome, KeyCtrlA:
-			edit_box.MoveCursorToBeginningOfTheLine()
-		case KeyEnd, KeyCtrlE:
-			edit_box.MoveCursorToEndOfTheLine()
-		case KeyEnter:
-			for range edit_box.text {
-				edit_box.DeleteRuneBackward()
-			}
-
-			//c.WriteLineToUser(edit_box.text.String())
-
-		default:
-			if ev.Ch != 0 {
-				edit_box.InsertRune(ev.Ch)
-			}
-		}
-	case EventError:
-		panic(ev.Err)
-	}
-	*/
-
-	// /}
 
 }

@@ -1,6 +1,15 @@
 package game
 
-import "net"
+import (
+	"bytes"
+	"net"
+)
+
+type Reply struct {
+	world  bytes.Buffer
+	events string
+	intro  bytes.Buffer
+}
 
 type ClientRequest struct {
 	Client Client

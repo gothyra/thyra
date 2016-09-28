@@ -16,10 +16,10 @@ type Client struct {
 	Cmd      chan<- ClientRequest
 	Buff     bytes.Buffer
 	Inbuff   []byte
-	Reply    chan bytes.Buffer
+	Reply    chan Reply
 }
 
-func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest, reply chan bytes.Buffer) Client {
+func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest, reply chan Reply) Client {
 	return Client{
 		Conn:     c,
 		Nickname: player.Nickname,
@@ -56,10 +56,8 @@ func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
 		}
 		line = strings.TrimSpace(line)
 		if len(line) == 0 {
-			continue
+			line = "empty"
 		}
-
-		fmt.Println(line)
 
 		select {
 		case c.Cmd <- ClientRequest{Client: c, Cmd: line}:

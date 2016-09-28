@@ -299,10 +299,13 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		args = lineParts[1]
 	}
 
+	posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+	printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
+
 	switch command {
 	case "l", "look", "map":
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-		printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
+		printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
 
 	case "e", "east":
 		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)[0][1])
@@ -318,11 +321,11 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Nickname].Position)
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
 		} else {
 
 			msg := "You can't go that way"
-			log.Println(msg)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, msg)
 		}
 
 	case "w", "west":
@@ -338,10 +341,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Room = posarray[1][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
 		} else {
 			msg := "You can't go that way"
-			log.Println(msg)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, msg)
 		}
 
 	case "n", "north":
@@ -356,10 +359,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Room = posarray[2][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
 		} else {
 			msg := "You can't go that way"
-			log.Println(msg)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, msg)
 		}
 
 	case "s", "south":
@@ -374,9 +377,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Room = posarray[3][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room)
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
 		} else {
 			msg := "You can't go that way"
+			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, msg)
 			log.Println(msg)
 		}
 	case "q", "quit":
@@ -420,21 +424,26 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.WriteToUser("\n")
 
 		}
+	case "empty":
+		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+		printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
 
 	default:
-		//c.WriteLineToUser("Huh?")
+		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+		msg := "Huh?"
+		printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, msg)
 	}
 }
 
-func printToUser(s *Server, c Client, map_array [][]Cube, posarray [][]string, areaID, room string) {
+func printToUser(s *Server, c Client, map_array [][]Cube, posarray [][]string, areaID, room string, event string) {
 
 	//buffexits := printExits(c, posarray)
 
 	bufmap := updateMap(s, c, s.players[c.Player.Nickname].Position, map_array)
+	buffintro := printIntro(s, c, areaID, room)
+	c.Reply <- Reply{world: bufmap, events: event, intro: buffintro}
 
-	c.Reply <- bufmap
-
-	//buffintro := printIntro(s, c, areaID, room)
+	//
 
 	/*
 		data := [][]string{

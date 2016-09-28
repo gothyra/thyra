@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -200,9 +199,11 @@ out:
 		return
 	}
 
-	reply := make(chan bytes.Buffer, 1)
+	//reply := make(chan bytes.Buffer, 1)
 
+	reply := make(chan game.Reply)
 	client := game.NewClient(c, &player, clientCh, reply)
+
 	go game.Go_editbox(client)
 
 	log.Printf("Player %q got connected\n", client.Player.Nickname)
