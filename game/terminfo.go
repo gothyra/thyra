@@ -158,7 +158,7 @@ func setup_term(c Client) (err error) {
 	str_offset = ti_header_length + header[1] + header[2] + 2*header[3]
 	table_offset = str_offset + 2*header[4]
 
-	keys = make([]string, 0xFFFF-key_min)
+	//keys = make([]string, 0xFFFF-key_min)
 	for i, _ := range keys {
 		keys[i], err = ti_read_string(rd, str_offset+2*ti_keys[i], table_offset)
 		if err != nil {
@@ -216,6 +216,6 @@ var ti_funcs = []int16{
 
 // Same as above for the special keys.
 var ti_keys = []int16{
-	66, 68 /* apparently not a typo; 67 is F10 for whatever reason */, 69, 70,
+	66, 68, 69, 70,
 	71, 72, 73, 74, 75, 67, 216, 217, 77, 59, 76, 164, 82, 81, 87, 61, 79, 83,
 }

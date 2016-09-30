@@ -3,7 +3,6 @@ package game
 import (
 	"bytes"
 	"fmt"
-	//"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/gothyra/toml"
-	//"github.com/olekukonko/tablewriter"
 )
 
 type Config struct {
@@ -299,9 +297,6 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		args = lineParts[1]
 	}
 
-	posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-	printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
-
 	switch command {
 	case "l", "look", "map":
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
@@ -315,9 +310,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Position = strconv.Itoa(newpos)
 
 			delete(s.players, c.Player.Nickname)
-			s.players[c.Player.Nickname] = *c.Player
 			c.Player.Area = posarray[0][0]
 			c.Player.Room = posarray[0][2]
+			s.players[c.Player.Nickname] = *c.Player
+
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Nickname].Position)
@@ -372,9 +368,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Position = strconv.Itoa(newpos)
 
 			delete(s.players, c.Player.Nickname)
-			s.players[c.Player.Nickname] = *c.Player
 			c.Player.Area = posarray[3][0]
 			c.Player.Room = posarray[3][2]
+			s.players[c.Player.Nickname] = *c.Player
+
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
@@ -435,32 +432,40 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	}
 }
 
-func printToUser(s *Server, c Client, map_array [][]Cube, posarray [][]string, areaID, room string, event string) {
+func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]string, areaID, room string, event string) {
 
 	//buffexits := printExits(c, posarray)
 
-	bufmap := updateMap(s, c, s.players[c.Player.Nickname].Position, map_array)
-	buffintro := printIntro(s, c, areaID, room)
-	c.Reply <- Reply{world: bufmap, events: event, intro: buffintro}
+	online := s.OnlineClients()
+	/*fmt.Printf("Len online : %d\n\n", len(online))
+	e := ""
+	for i := range online {
+		c := online[i]
 
-	//
+		fmt.Printf("Name : %s\n\n", c.Player.Nickname)
 
-	/*
-		data := [][]string{
-			[]string{buffintro.String(), "", "", buff.String()},
+		bufmap := updateMap(s, c.Player, map_array)
+		buffintro := printIntro(s, c, areaID, room)
+
+		if client.Player.Nickname == c.Player.Nickname {
+			e = event
 		}
 
-		table := tablewriter.NewWriter(io.MultiWriter(c.Conn))
-		table.SetHeader([]string{"Description", "  ", "  ", "Map"})
-		table.SetFooter([]string{" ", " ", " ", buffexits.String()}) // Add Footer
-		table.SetBorder(false)                                       // Set Border to false
-		table.AppendBulk(data)                                       // Add Bulk Data
-		table.Render()
+		c.Reply <- Reply{world: bufmap.Bytes(), events: e, intro: buffintro.Bytes()}
 
-	*/
+	}*/
 
-	//c.WriteLineToUser(buff.String())
+	e := ""
+	for i := range online {
+		c := online[i]
+		bufmap := updateMap(s, c.Player, map_array)
+		buffintro := printIntro(s, c, areaID, room)
 
-	//
+		if client.Player.Nickname == c.Player.Nickname {
+			e = event
+		}
+
+		c.Reply <- Reply{world: bufmap.Bytes(), events: e, intro: buffintro.Bytes()}
+	}
 
 }

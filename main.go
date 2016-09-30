@@ -199,9 +199,8 @@ out:
 		return
 	}
 
-	//reply := make(chan bytes.Buffer, 1)
-
 	reply := make(chan game.Reply)
+
 	client := game.NewClient(c, &player, clientCh, reply)
 
 	go game.Go_editbox(client)

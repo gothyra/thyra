@@ -126,35 +126,49 @@ func printExits(c Client, exit_array [][]string) bytes.Buffer { //Print exits,Fr
 
 }
 
-func updateMap(server *Server, c Client, pos string, s [][]Cube) bytes.Buffer {
+func updateMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
 
 	var buffer bytes.Buffer
+
+	hasPlayer := map[string]string{}
+	pos := p.Position
+
+	for _, players := range server.OnlineClients() {
+
+		if players.Player.Room == p.Room {
+			if players.Player.Nickname == p.Nickname {
+				pos = p.Position
+			}
+			hasPlayer[players.Player.Position] = players.Player.Nickname
+		}
+		if _, ok := hasPlayer[players.Player.Position]; ok {
+			//	log.Printf("%s: %v\n", players.Player.Nickname, players.Player.Position)
+		}
+
+	}
 
 	for y := 0; y < len(s); y++ {
 
 		buffer.WriteString("|")
 
 		for x := 0; x < len(s); x++ {
-
-			if s[x][y].ID != "" && s[x][y].ID != pos {
-
-				if s[x][y].Type == "door" {
-					buffer.WriteString("O|")
+			_, ok := hasPlayer[s[x][y].ID]
+			switch {
+			case s[x][y].Type == "door":
+				buffer.WriteString("O|")
+			case ok:
+				if s[x][y].ID == pos {
+					buffer.WriteString("*|")
 				} else {
-					buffer.WriteString("_|")
+					buffer.WriteString("a|")
 				}
-
-			} else if s[x][y].ID == pos {
-
-				buffer.WriteString("*|")
-			} else {
+			case s[x][y].ID == "":
 				buffer.WriteString("X|")
-
+			default:
+				buffer.WriteString("_|")
 			}
-
 		}
 		buffer.WriteString("\n")
-
 	}
 
 	return buffer

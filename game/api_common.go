@@ -1,6 +1,7 @@
 // termbox is a library for creating cross-platform text-based interfaces
 package game
 
+/*
 // public API, common OS agnostic part
 
 type (
@@ -31,11 +32,6 @@ type Event struct {
 // A cell, single conceptual entity on the screen. The screen is basically a 2d
 // array of cells. 'Ch' is a unicode character, 'Fg' and 'Bg' are foreground
 // and background attributes respectively.
-type Cell struct {
-	Ch rune
-	Fg Attribute
-	Bg Attribute
-}
 
 // To know if termbox has been initialized or not
 var (
@@ -185,3 +181,4 @@ const (
 	EventRaw
 	EventNone
 )
+*/

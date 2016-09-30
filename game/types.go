@@ -1,14 +1,11 @@
 package game
 
-import (
-	"bytes"
-	"net"
-)
+import "net"
 
 type Reply struct {
-	world  bytes.Buffer
+	world  []byte
 	events string
-	intro  bytes.Buffer
+	intro  []byte
 }
 
 type ClientRequest struct {
@@ -56,3 +53,25 @@ type Exit struct {
 	ToRoom   string `toml:"toroom"`
 	ToCubeID string `toml:"tocubeid"`
 }
+
+type Cell struct {
+	Ch rune
+	Fg Attribute
+	Bg Attribute
+}
+
+type (
+	Attribute uint16
+)
+
+const (
+	ColorDefault Attribute = iota
+	ColorBlack
+	ColorRed
+	ColorGreen
+	ColorYellow
+	ColorBlue
+	ColorMagenta
+	ColorCyan
+	ColorWhite
+)

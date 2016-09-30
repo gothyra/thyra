@@ -3,7 +3,6 @@ package game
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -15,8 +14,9 @@ type Client struct {
 	Player   *Player
 	Cmd      chan<- ClientRequest
 	Buff     bytes.Buffer
-	Inbuff   []byte
 	Reply    chan Reply
+	Fbuffer  struct{}
+	Bbuffer  struct{}
 }
 
 func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest, reply chan Reply) Client {
@@ -44,8 +44,9 @@ func (c Client) do_tell(client []Client, msg string, name string) {
 }
 
 func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
-	io.WriteString(c.Conn, fmt.Sprintf("Welcome, %s!\n", c.Player.Nickname))
 
+	//	io.WriteString(c.Conn, fmt.Sprintf("Welcome, %s!\n", c.Player.Nickname))
+	c.Cmd <- ClientRequest{Client: c, Cmd: "empty"}
 	bufc := bufio.NewReader(c.Conn)
 	for {
 		line, err := bufc.ReadString('\n')
@@ -61,7 +62,6 @@ func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
 
 		select {
 		case c.Cmd <- ClientRequest{Client: c, Cmd: line}:
-
 		case <-stopCh:
 			return
 		}

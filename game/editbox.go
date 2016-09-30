@@ -1,23 +1,25 @@
 package game
 
 import (
-	"bufio"
+	"bytes"
 	"unicode/utf8"
 
 	"github.com/mattn/go-runewidth"
 )
 
-func tbprint(x, y int, fg, bg Attribute, msg string) {
+func tbprint(x, y int, fg, bg Attribute, msg string, client Client) {
+
 	for _, c := range msg {
-		SetCell(x, y, c, fg, bg)
+		SetCell(x, y, c, fg, bg, client)
 		x += runewidth.RuneWidth(c)
 	}
+
 }
 
-func fill(x, y, w, h int, cell Cell) {
+func fill(x, y, w, h int, cell Cell, c Client) {
 	for ly := 0; ly < h; ly++ {
 		for lx := 0; lx < w; lx++ {
-			SetCell(x+lx, y+ly, cell.Ch, cell.Fg, cell.Bg)
+			SetCell(x+lx, y+ly, cell.Ch, cell.Fg, cell.Bg, c)
 		}
 	}
 }
@@ -77,11 +79,11 @@ type EditBox struct {
 }
 
 // Draws the EditBox in the given location, 'h' is not used at the moment
-func (eb *EditBox) Draw(x, y, w, h int) {
+func (eb *EditBox) Draw(x, y, w, h int, c Client) {
 	eb.AdjustVOffset(w)
 
 	const coldef = ColorDefault
-	fill(x, y, w, h, Cell{Ch: ' '})
+	fill(x, y, w, h, Cell{Ch: ' '}, c)
 
 	t := eb.text
 	lx := 0
@@ -98,7 +100,7 @@ func (eb *EditBox) Draw(x, y, w, h int) {
 
 		if rx >= w {
 			SetCell(x+w-1, y, '→',
-				coldef, coldef)
+				coldef, coldef, c)
 			break
 		}
 
@@ -111,12 +113,12 @@ func (eb *EditBox) Draw(x, y, w, h int) {
 				}
 
 				if rx >= 0 {
-					SetCell(x+rx, y, ' ', coldef, coldef)
+					SetCell(x+rx, y, ' ', coldef, coldef, c)
 				}
 			}
 		} else {
 			if rx >= 0 {
-				SetCell(x+rx, y, r, coldef, coldef)
+				SetCell(x+rx, y, r, coldef, coldef, c)
 			}
 			lx += runewidth.RuneWidth(r)
 		}
@@ -125,7 +127,7 @@ func (eb *EditBox) Draw(x, y, w, h int) {
 	}
 
 	if eb.line_voffset != 0 {
-		SetCell(x, y, '←', coldef, coldef)
+		SetCell(x, y, '←', coldef, coldef, c)
 	}
 }
 
@@ -234,6 +236,7 @@ var edit_box EditBox
 const edit_box_width = 30
 
 func redraw_all(c Client) {
+
 	const coldef = ColorDefault
 	Clear(coldef, coldef, c)
 	w, h := Size()
@@ -242,48 +245,46 @@ func redraw_all(c Client) {
 	midx := (w-edit_box_width)/2 - 50
 
 	reply := <-c.Reply
-	rd := bufio.NewReader(&reply.world)
-
-	rdev := &reply.events
-	rintro := bufio.NewReader(&reply.intro)
+	buf := bytes.NewBuffer(reply.world)
+	rintro := bytes.NewBuffer(reply.intro)
 
 	// Editbox
-	SetCell(midx-1, midy, '│', coldef, coldef)
-	SetCell(midx+edit_box_width, midy, '│', coldef, coldef)
-	SetCell(midx-1, midy-1, '┌', coldef, coldef)
-	SetCell(midx-1, midy+1, '└', coldef, coldef)
-	SetCell(midx+edit_box_width, midy-1, '┐', coldef, coldef)
-	SetCell(midx+edit_box_width, midy+1, '┘', coldef, coldef)
-	fill(midx, midy-1, edit_box_width, 1, Cell{Ch: '─'})
-	fill(midx, midy+1, edit_box_width, 1, Cell{Ch: '─'})
+	SetCell(midx-1, midy, '│', coldef, coldef, c)
+	SetCell(midx+edit_box_width, midy, '│', coldef, coldef, c)
+	SetCell(midx-1, midy-1, '┌', coldef, coldef, c)
+	SetCell(midx-1, midy+1, '└', coldef, coldef, c)
+	SetCell(midx+edit_box_width, midy-1, '┐', coldef, coldef, c)
+	SetCell(midx+edit_box_width, midy+1, '┘', coldef, coldef, c)
+	fill(midx, midy-1, edit_box_width, 1, Cell{Ch: '─'}, c)
+	fill(midx, midy+1, edit_box_width, 1, Cell{Ch: '─'}, c)
 
 	SetCursor(midx+edit_box.CursorX(), midy, c)
+
 	counter := 20
 	for {
-		l, _, err := rd.ReadLine()
+		line, err := buf.ReadString('\n')
 		if err != nil {
+			//log.Printf("world buffer read error: %v", err)
 			break
 		}
-		line := string(l)
-		tbprint(midx+100, midy-counter, coldef, coldef, line)
-
+		tbprint(midx+100, midy-counter, coldef, coldef, line, c)
 		counter--
 	}
-
 	counter2 := 20
 	for {
-		l, _, err := rintro.ReadLine()
+		line, err := rintro.ReadString('\n')
 		if err != nil {
+			//log.Printf("intro buffer read error: %v", err)
 			break
 		}
-		line := string(l)
-		tbprint(midx, midy-counter2, coldef, coldef, line)
-
+		tbprint(midx, midy-counter2, coldef, coldef, line, c)
 		counter2--
 	}
 
-	tbprint(midx, midy-10, coldef, coldef, *rdev)
-	//	edit_box.Draw(midx, midy, edit_box_width, 1)
+	tbprint(midx, midy-10, coldef, coldef, reply.events, c)
+	//edit_box.Draw(midx, midy, edit_box_width, 1)
+
+	//
 
 	Flush(c)
 
@@ -296,8 +297,8 @@ func Go_editbox(c Client) {
 	}
 	defer Close(c)
 	//SetInputMode(InputEsc, c)
-
 	for {
+
 		redraw_all(c)
 
 	}
