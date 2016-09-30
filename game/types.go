@@ -6,6 +6,7 @@ type Reply struct {
 	world  []byte
 	events string
 	intro  []byte
+	exits  string
 }
 
 type ClientRequest struct {

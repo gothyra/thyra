@@ -141,9 +141,6 @@ func updateMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
 			}
 			hasPlayer[players.Player.Position] = players.Player.Nickname
 		}
-		if _, ok := hasPlayer[players.Player.Position]; ok {
-			//	log.Printf("%s: %v\n", players.Player.Nickname, players.Player.Position)
-		}
 
 	}
 

@@ -282,6 +282,7 @@ func redraw_all(c Client) {
 	}
 
 	tbprint(midx, midy-10, coldef, coldef, reply.events, c)
+	tbprint(midx+90, midy-3, coldef, coldef, reply.exits, c)
 	//edit_box.Draw(midx, midy, edit_box_width, 1)
 
 	//

@@ -300,7 +300,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	switch command {
 	case "l", "look", "map":
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-		printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
+		printToUser(s, c, map_array, posarray, "")
 
 	case "e", "east":
 		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)[0][1])
@@ -317,11 +317,11 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Nickname].Position)
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
+			printToUser(s, c, map_array, posarray, "")
 		} else {
 
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, msg)
+			printToUser(s, c, map_array, posarray, msg)
 		}
 
 	case "w", "west":
@@ -337,10 +337,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Room = posarray[1][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
+			printToUser(s, c, map_array, posarray, "")
 		} else {
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, msg)
+			printToUser(s, c, map_array, posarray, msg)
 		}
 
 	case "n", "north":
@@ -355,10 +355,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Room = posarray[2][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
+			printToUser(s, c, map_array, posarray, "")
 		} else {
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, msg)
+			printToUser(s, c, map_array, posarray, msg)
 		}
 
 	case "s", "south":
@@ -374,10 +374,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
+			printToUser(s, c, map_array, posarray, "")
 		} else {
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, msg)
+			printToUser(s, c, map_array, posarray, msg)
 			log.Println(msg)
 		}
 	case "q", "quit":
@@ -398,74 +398,58 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	case "tell":
 		c.do_tell(s.OnlineClients(), args, c.Player.Nickname)
 
-	case "list":
-		for i := range map_array {
-			for y := range map_array {
+	/*case "list":
+	for i := range map_array {
+		for y := range map_array {
 
-				if map_array[y][i].ID != "" {
-					id, _ := strconv.Atoi(map_array[y][i].ID)
-					if id < 10 {
-						c.WriteToUser("|  " + map_array[y][i].ID + " |")
-
-					} else {
-						c.WriteToUser("| " + map_array[y][i].ID + " |")
-
-					}
+			if map_array[y][i].ID != "" {
+				id, _ := strconv.Atoi(map_array[y][i].ID)
+				if id < 10 {
+					c.WriteToUser("|  " + map_array[y][i].ID + " |")
 
 				} else {
-					c.WriteToUser("| XX |")
+					c.WriteToUser("| " + map_array[y][i].ID + " |")
 
 				}
 
+			} else {
+				c.WriteToUser("| XX |")
+
 			}
-			c.WriteToUser("\n")
 
 		}
+		c.WriteToUser("\n")
+
+	}*/
 	case "empty":
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-		printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, "")
+		printToUser(s, c, map_array, posarray, "")
 
 	default:
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 		msg := "Huh?"
-		printToUser(s, c, map_array, posarray, c.Player.Area, c.Player.Room, msg)
+		printToUser(s, c, map_array, posarray, msg)
 	}
 }
 
-func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]string, areaID, room string, event string) {
+func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]string, event string) {
 
-	//buffexits := printExits(c, posarray)
+	buffexits := printExits(client, posarray)
 
 	online := s.OnlineClients()
-	/*fmt.Printf("Len online : %d\n\n", len(online))
 	e := ""
+
 	for i := range online {
+
 		c := online[i]
-
-		fmt.Printf("Name : %s\n\n", c.Player.Nickname)
-
 		bufmap := updateMap(s, c.Player, map_array)
-		buffintro := printIntro(s, c, areaID, room)
+		buffintro := printIntro(s, c, c.Player.Area, c.Player.Room)
 
 		if client.Player.Nickname == c.Player.Nickname {
 			e = event
 		}
+		c.Reply <- Reply{world: bufmap.Bytes(), events: e, intro: buffintro.Bytes(), exits: buffexits.String()}
 
-		c.Reply <- Reply{world: bufmap.Bytes(), events: e, intro: buffintro.Bytes()}
-
-	}*/
-
-	e := ""
-	for i := range online {
-		c := online[i]
-		bufmap := updateMap(s, c.Player, map_array)
-		buffintro := printIntro(s, c, areaID, room)
-
-		if client.Player.Nickname == c.Player.Nickname {
-			e = event
-		}
-
-		c.Reply <- Reply{world: bufmap.Bytes(), events: e, intro: buffintro.Bytes()}
 	}
 
 }
