@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/gothyra/toml"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type Config struct {
@@ -40,28 +40,29 @@ func NewServer(staticDir string) *Server {
 }
 
 func (s *Server) LoadConfig() error {
-	log.Println("Loading config ...")
+	log.Info("Loading config ...")
 
 	configFileName := filepath.Join(s.staticDir, "/server.toml")
 	fileContent, fileIoErr := ioutil.ReadFile(configFileName)
 	if fileIoErr != nil {
-		log.Printf("%s could not be loaded: %v\n", configFileName, fileIoErr)
+
+		log.Info(fmt.Sprintf("%s could not be loaded: %v\n", configFileName, fileIoErr))
 		return fileIoErr
 	}
 
 	config := Config{}
 	if _, err := toml.Decode(string(fileContent), &config); err != nil {
-		log.Printf("%s could not be unmarshaled: %v\n", configFileName, err)
+		log.Info(fmt.Sprintf("%s could not be unmarshaled: %v\n", configFileName, err))
 		return err
 	}
 
 	s.Config = config
-	log.Println("Config loaded.")
+	log.Info("Config loaded.")
 	return nil
 }
 
 func (s *Server) LoadAreas() error {
-	log.Println("Loading areas ...")
+	log.Info("Loading areas ...")
 	areaWalker := func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
@@ -69,17 +70,17 @@ func (s *Server) LoadAreas() error {
 
 		fileContent, fileIoErr := ioutil.ReadFile(path)
 		if fileIoErr != nil {
-			log.Printf("%s could not be loaded: %v\n", path, fileIoErr)
+			log.Info(fmt.Sprintf("%s could not be loaded: %v", path, fileIoErr))
 			return fileIoErr
 		}
 
 		area := Area{}
 		if _, err := toml.Decode(string(fileContent), &area); err != nil {
-			log.Printf("%s could not be unmarshaled: %v\n", path, err)
+			log.Info(fmt.Sprintf("%s could not be unmarshaled: %v", path, err))
 			return err
 		}
 
-		log.Printf("Loaded area %q\n", area.Name)
+		log.Info(fmt.Sprintf("Loaded area %q", area.Name))
 		// TODO: Lock
 		s.Areas[area.Name] = area
 
@@ -118,17 +119,17 @@ func (s *Server) LoadPlayer(playerName string) (bool, error) {
 
 	fileContent, fileIoErr := ioutil.ReadFile(playerFileName)
 	if fileIoErr != nil {
-		log.Printf("%s could not be loaded: %v\n", playerFileName, fileIoErr)
+		log.Info(fmt.Sprintf("%s could not be loaded: %v", playerFileName, fileIoErr))
 		return true, fileIoErr
 	}
 
 	player := Player{}
 	if _, err := toml.Decode(string(fileContent), &player); err != nil {
-		log.Printf("%s could not be unmarshaled: %v\n", playerFileName, err)
+		log.Info(fmt.Sprintf("%s could not be unmarshaled: %v", playerFileName, err))
 		return true, err
 	}
 
-	log.Printf("Loaded player %q\n", player.Nickname)
+	log.Info(fmt.Sprintf("Loaded player %q", player.Nickname))
 	// TODO: Lock
 	s.players[player.Nickname] = player
 
@@ -146,9 +147,9 @@ func (s *Server) CreatePlayer(nick string) {
 		return
 	}
 	if _, err := os.Stat(playerFileName); err == nil {
-		log.Printf("Player %q does already exist.\n", nick)
+		log.Info(fmt.Sprintf("Player %q does already exist.\n", nick))
 		if _, err := s.LoadPlayer(nick); err != nil {
-			log.Printf("Player %s cannot be loaded: %v", nick, err)
+			log.Info(fmt.Sprintf("Player %s cannot be loaded: %v", nick, err))
 		}
 		return
 	}
@@ -174,18 +175,18 @@ func (s *Server) SavePlayer(player Player) bool {
 		}
 
 		if ioerror := ioutil.WriteFile(playerFileName, data.Bytes(), 0644); ioerror != nil {
-			log.Println(ioerror)
+			log.Info(ioerror.Error())
 			return true
 		}
 	} else {
-		log.Println(err)
+		log.Info(err.Error())
 	}
 	return false
 }
 
 func (s *Server) OnExit(client Client) {
 	s.SavePlayer(*client.Player)
-	s.ClientLoggedOut(client.Nickname)
+	s.ClientLoggedOut(client.Player.Nickname)
 
 	client.WriteLineToUser(fmt.Sprintf("\nGood bye %s", client.Player.Nickname))
 }
@@ -317,7 +318,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 
-			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Nickname].Position)
+			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)
 			printToUser(s, c, map_array, posarray, "")
 		} else {
 
@@ -379,22 +380,17 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		} else {
 			msg := "You can't go that way"
 			printToUser(s, c, map_array, posarray, msg)
-			log.Println(msg)
+			log.Info(msg)
 		}
-	case "q", "quit":
+	case "quit", "exit":
 		s.OnExit(c)
 		c.Conn.Close()
 
 	case "fight":
 		do_fight(c)
+
 	case "create":
 		create_character()
-
-	case "clients":
-		for _, players := range s.OnlineClients() {
-			fmt.Print("Name : " + players.Player.Nickname + "\n")
-
-		}
 
 	case "tell":
 		c.do_tell(s.OnlineClients(), args, c.Player.Nickname)
@@ -450,9 +446,9 @@ func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]stri
 		if c.Player.Nickname == c.Player.Nickname {
 			e = event
 		}
-
+		log.Info("Server:Before Reply")
 		c.Reply <- Reply{world: bufmap.Bytes(), events: e, intro: buffintro.Bytes(), exits: buffexits.String()}
-
+		log.Info("Server:After Reply")
 	}
 
 }

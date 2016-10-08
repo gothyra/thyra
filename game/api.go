@@ -7,21 +7,19 @@ import (
 	"syscall"
 
 	"github.com/mattn/go-runewidth"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-func Init(c Client) error {
+func Init(c *Client) error {
 	var err error
 
 	out, err = os.OpenFile("/dev/tty", syscall.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}
-	in, err = syscall.Open("/dev/tty", syscall.O_RDONLY, 0)
-	if err != nil {
-		return err
-	}
+	defer out.Close()
 
-	err = setup_term(c)
+	err = setup_term()
 	if err != nil {
 		return fmt.Errorf("termbox: error while reading terminfo data: %v", err)
 	}
@@ -32,11 +30,19 @@ func Init(c Client) error {
 	io.WriteString(c.Conn, funcs[t_clear_screen])
 
 	termw, termh = get_term_size(out.Fd())
-	back_buffer.init(termw, termh)
-	front_buffer.init(termw, termh)
-	back_buffer.clear()
-	front_buffer.clear()
 
+	log.Info(fmt.Sprintf("TermW:%d , TermH:%d ", termw, termh))
+
+	backb := New(termw, termh)
+	frontb := New(termw, termh)
+
+	log.Info("Clear Start")
+	backb.clear()
+	frontb.clear()
+
+	c.Bbuffer = backb
+	c.Fbuffer = frontb
+	log.Info(fmt.Sprintf("Init OK : %s", c.Player.Nickname))
 	return nil
 }
 
@@ -50,17 +56,13 @@ func Interrupt() {
 // Finalizes termbox library, should be called after successful initialization
 // when termbox's functionality isn't required anymore.
 func Close(c Client) {
-	quit <- 1
+
 	io.WriteString(c.Conn, funcs[t_show_cursor])
 	io.WriteString(c.Conn, funcs[t_sgr0])
 	io.WriteString(c.Conn, funcs[t_clear_screen])
 	io.WriteString(c.Conn, funcs[t_exit_ca])
 	io.WriteString(c.Conn, funcs[t_exit_keypad])
 	io.WriteString(c.Conn, funcs[t_exit_mouse])
-	//tcsetattr(out.Fd(), &orig_tios)
-
-	out.Close()
-	//syscall.Close(in)
 
 	// reset the state, so that on next Init() it will work again
 	termw = 0
@@ -85,37 +87,43 @@ func Flush(c Client) error {
 	lastx = coord_invalid
 	lasty = coord_invalid
 
-	update_size_maybe(c)
+	//update_size_maybe(c)
 
-	for y := 0; y < front_buffer.height; y++ {
-		line_offset := y * front_buffer.width
-		for x := 0; x < front_buffer.width; {
+	log.Info(fmt.Sprintf("Frontbuffer W:%d H:%d"), c.Fbuffer.Width, c.Fbuffer.Height)
+	for y := 0; y < c.Fbuffer.Height; y++ {
+
+		line_offset := y * c.Fbuffer.Width
+
+		for x := 0; x < c.Fbuffer.Width; {
 			cell_offset := line_offset + x
-			back := &back_buffer.cells[cell_offset]
-			front := &front_buffer.cells[cell_offset]
+			back := c.Bbuffer.Cells[cell_offset]
+			front := c.Fbuffer.Cells[cell_offset]
 			if back.Ch < ' ' {
 				back.Ch = ' '
 			}
 			w := runewidth.RuneWidth(back.Ch)
+
 			if w == 0 || w == 2 && runewidth.IsAmbiguousWidth(back.Ch) {
 				w = 1
 			}
-			if *back == *front {
+			if back == front {
 				x += w
 				continue
 			}
-			*front = *back
+			front = back
 			//send_attr(back.Fg, back.Bg, c)
 
-			if w == 2 && x == front_buffer.width-1 {
+			if w == 2 && x == c.Fbuffer.Width-1 {
+
 				// there's not enough space for 2-cells rune,
 				// let's just put a space in there
 				send_char(x, y, ' ', c)
+
 			} else {
 				send_char(x, y, back.Ch, c)
 				if w == 2 {
 					next := cell_offset + 1
-					front_buffer.cells[next] = Cell{
+					c.Fbuffer.Cells[next] = Cell{
 						Ch: 0,
 						Fg: back.Fg,
 						Bg: back.Bg,
@@ -129,7 +137,7 @@ func Flush(c Client) error {
 	if !is_cursor_hidden(cursor_x, cursor_y) {
 		write_cursor(cursor_x, cursor_y, c)
 	}
-
+	log.Info(fmt.Sprintf("Flush :%s", c.Player.Nickname))
 	return flush(c)
 }
 
@@ -158,22 +166,18 @@ func HideCursor(c Client) {
 // position.
 func SetCell(x, y int, ch rune, fg, bg Attribute, c Client) {
 
-	if x < 0 || x >= back_buffer.width {
+	if x < 0 || x >= c.Bbuffer.Width {
 		return
 	}
-	if y < 0 || y >= back_buffer.height {
+	if y < 0 || y >= c.Bbuffer.Height {
 		return
 	}
-	fmt.Printf("%c", ch)
-	back_buffer.cells[y*back_buffer.width+x] = Cell{ch, fg, bg}
 
-}
+	fmt.Print(fmt.Sprintf("%s", string(ch)))
 
-// Returns a slice into the termbox's back buffer. You can get its dimensions
-// using 'Size' function. The slice remains valid as long as no 'Clear' or
-// 'Flush' function calls were made after call to this function.
-func CellBuffer(c Client) []Cell {
-	return back_buffer.cells
+	//back_buffer.Cells[y*back_buffer.width+x] = Cell{ch, fg, bg}
+	c.Bbuffer.Cells[y*c.Bbuffer.Width+x] = Cell{ch, fg, bg}
+
 }
 
 // Returns the size of the internal back buffer (which is mostly the same as
@@ -189,23 +193,7 @@ func Clear(fg, bg Attribute, c Client) error {
 
 	foreground, background = fg, bg
 	err := update_size_maybe(c)
-	back_buffer.clear()
+	c.Bbuffer.clear()
 
 	return err
-}
-
-// Sync comes handy when something causes desync between termbox's understanding
-// of a terminal buffer and the reality. Such as a third party process. Sync
-// forces a complete resync between the termbox and a terminal, it may not be
-// visually pretty though.
-
-func Sync(c Client) error {
-
-	back_buffer.clear()
-	err := send_clear(c)
-	if err != nil {
-		return err
-	}
-
-	return Flush(c)
 }

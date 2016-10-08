@@ -9,24 +9,27 @@ import (
 )
 
 type Client struct {
-	Conn     net.Conn
-	Nickname string
-	Player   *Player
-	Cmd      chan<- ClientRequest
-	Buff     bytes.Buffer
-	Reply    chan Reply
-	Fbuffer  struct{}
-	Bbuffer  struct{}
+	Conn    net.Conn
+	Player  *Player
+	Cmd     chan<- ClientRequest
+	Buff    bytes.Buffer
+	Reply   chan Reply
+	Bbuffer *Cellbuf
+	Fbuffer *Cellbuf
 }
 
 func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest, reply chan Reply) Client {
-	return Client{
-		Conn:     c,
-		Nickname: player.Nickname,
-		Player:   player,
-		Cmd:      cmd,
-		Reply:    reply,
+	client := Client{
+		Conn:    c,
+		Player:  player,
+		Cmd:     cmd,
+		Reply:   reply,
+		Bbuffer: new(Cellbuf),
+		Fbuffer: new(Cellbuf),
 	}
+
+	return client
+
 }
 
 func (c Client) WriteToUser(msg string) {

@@ -5,28 +5,33 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/gothyra/thyra/game"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
+
+func init() {
+	log.Root().SetHandler(log.CallerFileHandler(log.StdoutHandler))
+}
 
 func main() {
 	// Environment variables
+	//flag.Parse()
 	staticDir := os.Getenv("THYRA_STATIC")
 	if len(staticDir) == 0 {
 		pwd, _ := os.Getwd()
 		staticDir = filepath.Join(pwd, "static")
-		log.Println("Set THYRA_STATIC if you wish to configure the directory for static content")
+		log.Info("Set THYRA_STATIC if you wish to configure the directory for static content")
 	}
-	log.Printf("Using %s for static content\n", staticDir)
+	log.Info(fmt.Sprintf("Using %s for static content", staticDir))
 
 	// Flags
 	port := flag.Int64("port", 4000, "Port to listen on incoming connections")
-	flag.Parse()
+	//flag.Parse()
 
 	// Setup and start the server
 	server := game.NewServer(staticDir)
@@ -49,10 +54,10 @@ func main() {
 
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
-		log.Println(err.Error())
+		log.Info(err.Error())
 		os.Exit(1)
 	}
-	log.Printf("Listen on: %s", ln.Addr())
+	log.Info(fmt.Sprintf("Listen on: %s", ln.Addr()))
 
 	var wg sync.WaitGroup
 	quit := make(chan struct{})
@@ -114,7 +119,7 @@ func acceptConnections(
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			fmt.Println(err)
+			log.Info(err.Error())
 			continue
 		}
 		wg.Add(1)
@@ -143,7 +148,7 @@ func handleConnection(
 	bufc := bufio.NewReader(c)
 	defer c.Close()
 
-	log.Println("New connection open:", c.RemoteAddr())
+	log.Info(fmt.Sprintf("New connection open: %s", c.RemoteAddr()))
 
 	io.WriteString(c, WelcomePage)
 
@@ -192,23 +197,18 @@ out:
 		}
 	}
 
-	player, playerLoaded := server.GetPlayerByNick(username)
-	if !playerLoaded {
-		log.Println("problem getting user object")
-		io.WriteString(c, "Problem getting user object\n")
-		return
-	}
+	player, _ := server.GetPlayerByNick(username)
 
 	reply := make(chan game.Reply)
 
 	client := game.NewClient(c, &player, clientCh, reply)
 
-	go game.Go_editbox(client, server)
+	go game.Go_editbox(&client)
 
-	log.Printf("Player %q got connected\n", client.Player.Nickname)
-	server.ClientLoggedIn(client.Nickname, client)
+	log.Info(fmt.Sprintf("Player %q got connected", client.Player.Nickname))
+	server.ClientLoggedIn(client.Player.Nickname, client)
 	client.ReadLinesInto(quit)
-	log.Printf("Connection from %v closed.\n", c.RemoteAddr())
+	log.Info(fmt.Sprintf("Connection from %v closed.", c.RemoteAddr()))
 }
 
 func promptMessage(c net.Conn, bufc *bufio.Reader, message string) string {

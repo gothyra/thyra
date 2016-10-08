@@ -2,16 +2,21 @@ package game
 
 import (
 	"bytes"
+	"fmt"
 	"unicode/utf8"
 
 	"github.com/mattn/go-runewidth"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func tbprint(x, y int, fg, bg Attribute, msg string, client Client) {
 
 	for _, c := range msg {
+		//log.Info(fmt.Sprintf("%s", string(c)))
+
 		SetCell(x, y, c, fg, bg, client)
 		x += runewidth.RuneWidth(c)
+
 	}
 
 }
@@ -214,7 +219,7 @@ func (eb *EditBox) DeleteTheRestOfTheLine() {
 	eb.text = eb.text[:eb.cursor_boffset]
 }
 
-func (eb *EditBox) Clear() {
+func (eb *EditBox) ClearEdit() {
 	eb.text = []byte{}
 }
 
@@ -233,21 +238,21 @@ func (eb *EditBox) CursorX() int {
 
 var edit_box EditBox
 
-const edit_box_width = 120
+const edit_box_width = 110
 
-func redraw_all(c Client, s *Server) {
+func redraw_all(c Client) {
 
+	log.Info(fmt.Sprintf("Redraw: %s ,W:%d H:%d ", c.Player.Nickname, c.Bbuffer.Width, c.Bbuffer.Height))
 	const coldef = ColorDefault
-	Clear(coldef, coldef, c)
+	//Clear(coldef, coldef, c)
 	w, h := Size()
-
-	//online := s.OnlineClients()
 
 	midy := h/2 + 12
 	midx := (w - edit_box_width) - 10
 
+	log.Info("Redraw : Before Reply")
 	reply := <-c.Reply
-
+	log.Info("Redraw : After Reply")
 	buf := bytes.NewBuffer(reply.world)
 	rintro := bytes.NewBuffer(reply.intro)
 
@@ -267,17 +272,18 @@ func redraw_all(c Client, s *Server) {
 	for {
 		line, err := buf.ReadString('\n')
 		if err != nil {
-			//log.Printf("world buffer read error: %v", err)
+			//log.Info("world buffer read error: %v", err)
 			break
 		}
 		tbprint(midx+100, midy-counter, coldef, coldef, line, c)
 		counter--
+
 	}
 	counter2 := 20
 	for {
 		line, err := rintro.ReadString('\n')
 		if err != nil {
-			//log.Printf("intro buffer read error: %v", err)
+			//log.Info("intro buffer read error: %v", err)
 			break
 		}
 		tbprint(midx, midy-counter2, coldef, coldef, line, c)
@@ -291,17 +297,14 @@ func redraw_all(c Client, s *Server) {
 
 }
 
-func Go_editbox(c Client, s *Server) {
-
+func Go_editbox(c *Client) {
 	err := Init(c)
 	if err != nil {
 		panic(err)
 	}
-	defer Close(c)
+	defer Close(*c)
 
 	for {
-
-		redraw_all(c, s)
+		redraw_all(*c)
 	}
-
 }

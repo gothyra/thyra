@@ -1,51 +1,64 @@
 package game
 
+import (
+	"flag"
+	"fmt"
+
+	log "github.com/golang/glog"
+)
+
 // private API, common OS agnostic part
 
-type cellbuf struct {
-	width  int
-	height int
-	cells  []Cell
+type Cellbuf struct {
+	Width  int
+	Height int
+	Cells  []Cell
 }
 
-func (this *cellbuf) init(width, height int) {
-	this.width = width
-	this.height = height
-	this.cells = make([]Cell, width*height)
+func New(Width, Height int) *Cellbuf {
+	//flag.Parse()
+	log.Info(fmt.Sprintf("Enter Cellbuf init %d , %d :", Width, Height))
+	return &Cellbuf{
+		Width:  Width,
+		Height: Height,
+		Cells:  make([]Cell, Width*Height),
+	}
 }
 
-func (this *cellbuf) resize(width, height int) {
-	if this.width == width && this.height == height {
+func (this *Cellbuf) resize(Width, Height int) {
+	if this.Width == Width && this.Height == Height {
 		return
 	}
 
-	oldw := this.width
-	oldh := this.height
-	oldcells := this.cells
+	oldw := this.Width
+	oldh := this.Height
+	oldCells := this.Cells
 
-	this.init(width, height)
+	this = New(Width, Height)
 	this.clear()
 
 	minw, minh := oldw, oldh
 
-	if width < minw {
-		minw = width
+	if Width < minw {
+		minw = Width
 	}
-	if height < minh {
-		minh = height
+	if Height < minh {
+		minh = Height
 	}
 
 	for i := 0; i < minh; i++ {
-		srco, dsto := i*oldw, i*width
-		src := oldcells[srco : srco+minw]
-		dst := this.cells[dsto : dsto+minw]
+		srco, dsto := i*oldw, i*Width
+		src := oldCells[srco : srco+minw]
+		dst := this.Cells[dsto : dsto+minw]
 		copy(dst, src)
 	}
 }
 
-func (this *cellbuf) clear() {
-	for i := range this.cells {
-		c := &this.cells[i]
+func (this *Cellbuf) clear() {
+	flag.Parse()
+	log.Info(fmt.Sprintf("clear():Size Cells:", len(this.Cells)))
+	for i := range this.Cells {
+		c := &this.Cells[i]
 		c.Ch = ' '
 		c.Fg = foreground
 		c.Bg = background

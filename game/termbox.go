@@ -2,13 +2,17 @@
 
 package game
 
-import "unicode/utf8"
-import "syscall"
-import "unsafe"
+import (
+	"fmt"
+	"io"
+	"os"
+	"strconv"
+	"syscall"
+	"unicode/utf8"
+	"unsafe"
 
-import "strconv"
-import "os"
-import "io"
+	log "gopkg.in/inconshreveable/log15.v2"
+)
 
 // private API
 
@@ -47,8 +51,8 @@ var (
 
 	// termbox inner state
 	//orig_tios    syscall_Termios
-	back_buffer  cellbuf
-	front_buffer cellbuf
+	back_buffer  Cellbuf
+	front_buffer Cellbuf
 	termw        int
 	termh        int
 	//input_mode  = InputEsc
@@ -104,6 +108,7 @@ func get_term_size(fd uintptr) (int, int) {
 }
 
 func send_char(x, y int, ch rune, c Client) {
+	log.Info(fmt.Sprintf("Send_char: %s", c.Player.Nickname))
 	var buf [8]byte
 	n := utf8.EncodeRune(buf[:], ch)
 	if x-1 != lastx || y != lasty {
@@ -148,9 +153,9 @@ func update_size_maybe(c Client) error {
 	w, h := get_term_size(out.Fd())
 	if w != termw || h != termh {
 		termw, termh = w, h
-		back_buffer.resize(termw, termh)
-		front_buffer.resize(termw, termh)
-		front_buffer.clear()
+		c.Bbuffer.resize(termw, termh)
+		c.Fbuffer.resize(termw, termh)
+		c.Fbuffer.clear()
 		return send_clear(c)
 	}
 	return nil

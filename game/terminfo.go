@@ -131,7 +131,7 @@ func setup_term_builtin() error {
 	return errors.New("termbox: unsupported terminal")
 }
 
-func setup_term(c Client) (err error) {
+func setup_term() (err error) {
 	var data []byte
 	var header [6]int16
 	var str_offset, table_offset int16
