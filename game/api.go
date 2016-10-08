@@ -164,7 +164,7 @@ func SetCell(x, y int, ch rune, fg, bg Attribute, c Client) {
 	if y < 0 || y >= back_buffer.height {
 		return
 	}
-
+	fmt.Printf("%c", ch)
 	back_buffer.cells[y*back_buffer.width+x] = Cell{ch, fg, bg}
 
 }

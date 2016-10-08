@@ -47,6 +47,7 @@ func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
 
 	//	io.WriteString(c.Conn, fmt.Sprintf("Welcome, %s!\n", c.Player.Nickname))
 	c.Cmd <- ClientRequest{Client: c, Cmd: "empty"}
+
 	bufc := bufio.NewReader(c.Conn)
 	for {
 		line, err := bufc.ReadString('\n')

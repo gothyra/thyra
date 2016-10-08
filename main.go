@@ -203,7 +203,7 @@ out:
 
 	client := game.NewClient(c, &player, clientCh, reply)
 
-	go game.Go_editbox(client)
+	go game.Go_editbox(client, server)
 
 	log.Printf("Player %q got connected\n", client.Player.Nickname)
 	server.ClientLoggedIn(client.Nickname, client)

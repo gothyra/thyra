@@ -233,18 +233,21 @@ func (eb *EditBox) CursorX() int {
 
 var edit_box EditBox
 
-const edit_box_width = 30
+const edit_box_width = 120
 
-func redraw_all(c Client) {
+func redraw_all(c Client, s *Server) {
 
 	const coldef = ColorDefault
 	Clear(coldef, coldef, c)
 	w, h := Size()
 
+	//online := s.OnlineClients()
+
 	midy := h/2 + 12
-	midx := (w-edit_box_width)/2 - 50
+	midx := (w - edit_box_width) - 10
 
 	reply := <-c.Reply
+
 	buf := bytes.NewBuffer(reply.world)
 	rintro := bytes.NewBuffer(reply.intro)
 
@@ -283,25 +286,22 @@ func redraw_all(c Client) {
 
 	tbprint(midx, midy-10, coldef, coldef, reply.events, c)
 	tbprint(midx+90, midy-3, coldef, coldef, reply.exits, c)
-	//edit_box.Draw(midx, midy, edit_box_width, 1)
-
-	//
 
 	Flush(c)
 
 }
 
-func Go_editbox(c Client) {
+func Go_editbox(c Client, s *Server) {
+
 	err := Init(c)
 	if err != nil {
 		panic(err)
 	}
 	defer Close(c)
-	//SetInputMode(InputEsc, c)
+
 	for {
 
-		redraw_all(c)
-
+		redraw_all(c, s)
 	}
 
 }

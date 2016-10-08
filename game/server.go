@@ -186,7 +186,8 @@ func (s *Server) SavePlayer(player Player) bool {
 func (s *Server) OnExit(client Client) {
 	s.SavePlayer(*client.Player)
 	s.ClientLoggedOut(client.Nickname)
-	client.WriteLineToUser(fmt.Sprintf("Good bye %s", client.Player.Nickname))
+
+	client.WriteLineToUser(fmt.Sprintf("\nGood bye %s", client.Player.Nickname))
 }
 
 func (s *Server) ClientLoggedIn(name string, client Client) {
@@ -442,12 +443,14 @@ func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]stri
 	for i := range online {
 
 		c := online[i]
+
 		bufmap := updateMap(s, c.Player, map_array)
 		buffintro := printIntro(s, c, c.Player.Area, c.Player.Room)
 
-		if client.Player.Nickname == c.Player.Nickname {
+		if c.Player.Nickname == c.Player.Nickname {
 			e = event
 		}
+
 		c.Reply <- Reply{world: bufmap.Bytes(), events: e, intro: buffintro.Bytes(), exits: buffexits.String()}
 
 	}
