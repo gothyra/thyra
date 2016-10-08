@@ -24,9 +24,11 @@ type LoginRequest struct {
 type Player struct {
 	Nickname string `toml:"nickname"`
 	PC
-	Area     string `toml:"area"`
-	Room     string `toml:"room"`
-	Position string `toml:"position"`
+	Area         string `toml:"area"`
+	Room         string `toml:"room"`
+	Position     string `toml:"position"`
+	PreviousRoom string
+	PreviousArea string
 }
 
 type Area struct {

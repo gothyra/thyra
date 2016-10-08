@@ -1,7 +1,6 @@
 package game
 
 import (
-	"flag"
 	"fmt"
 
 	log "github.com/golang/glog"
@@ -55,7 +54,7 @@ func (this *Cellbuf) resize(Width, Height int) {
 }
 
 func (this *Cellbuf) clear() {
-	flag.Parse()
+
 	log.Info(fmt.Sprintf("clear():Size Cells:", len(this.Cells)))
 	for i := range this.Cells {
 		c := &this.Cells[i]

@@ -171,7 +171,7 @@ func updateMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
 	return buffer
 }
 
-func printIntro(s *Server, c Client, areaID, room string) bytes.Buffer { // Print to intro tis area
+func printIntro(s *Server, areaID, room string) bytes.Buffer { // Print to intro tis area
 
 	var buffer bytes.Buffer
 

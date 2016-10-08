@@ -108,7 +108,7 @@ func get_term_size(fd uintptr) (int, int) {
 }
 
 func send_char(x, y int, ch rune, c Client) {
-	log.Info(fmt.Sprintf("Send_char: %s", c.Player.Nickname))
+
 	var buf [8]byte
 	n := utf8.EncodeRune(buf[:], ch)
 	if x-1 != lastx || y != lasty {
@@ -148,15 +148,20 @@ func send_clear(c Client) error {
 	return flush(c)
 }
 
-func update_size_maybe(c Client) error {
-
-	w, h := get_term_size(out.Fd())
-	if w != termw || h != termh {
-		termw, termh = w, h
-		c.Bbuffer.resize(termw, termh)
-		c.Fbuffer.resize(termw, termh)
-		c.Fbuffer.clear()
-		return send_clear(c)
+func update_size_maybe(c *Client) error {
+	var err error
+	out, err = os.OpenFile("/dev/tty", syscall.O_WRONLY, 0)
+	if err != nil {
+		return err
 	}
-	return nil
+	defer out.Close()
+	termw, termh = get_term_size(out.Fd())
+
+	c.Bbuffer.resize(termw, termh)
+	c.Fbuffer.resize(termw, termh)
+	c.Fbuffer.clear()
+
+	log.Info(fmt.Sprintf("New->W:%d H:%d", termw, termh))
+	return send_clear(*c)
+
 }

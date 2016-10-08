@@ -82,12 +82,12 @@ func Close(c Client) {
 }
 
 // Synchronizes the internal back buffer with the terminal.
-func Flush(c Client) error {
+func Flush(c *Client) error {
 	// invalidate cursor position
 	lastx = coord_invalid
 	lasty = coord_invalid
 
-	//update_size_maybe(c)
+	update_size_maybe(c)
 
 	log.Info(fmt.Sprintf("Frontbuffer W:%d H:%d"), c.Fbuffer.Width, c.Fbuffer.Height)
 	for y := 0; y < c.Fbuffer.Height; y++ {
@@ -117,10 +117,10 @@ func Flush(c Client) error {
 
 				// there's not enough space for 2-cells rune,
 				// let's just put a space in there
-				send_char(x, y, ' ', c)
+				send_char(x, y, ' ', *c)
 
 			} else {
-				send_char(x, y, back.Ch, c)
+				send_char(x, y, back.Ch, *c)
 				if w == 2 {
 					next := cell_offset + 1
 					c.Fbuffer.Cells[next] = Cell{
@@ -135,20 +135,20 @@ func Flush(c Client) error {
 		}
 	}
 	if !is_cursor_hidden(cursor_x, cursor_y) {
-		write_cursor(cursor_x, cursor_y, c)
+		write_cursor(cursor_x, cursor_y, *c)
 	}
 	log.Info(fmt.Sprintf("Flush :%s", c.Player.Nickname))
-	return flush(c)
+	return flush(*c)
 }
 
 // Sets the position of the cursor. See also HideCursor().
 func SetCursor(x, y int, c Client) {
 	if is_cursor_hidden(cursor_x, cursor_y) && !is_cursor_hidden(x, y) {
-		io.WriteString(c.Conn, funcs[t_show_cursor])
+		//io.WriteString(c.Conn, funcs[t_show_cursor])
 	}
 
 	if !is_cursor_hidden(cursor_x, cursor_y) && is_cursor_hidden(x, y) {
-		io.WriteString(c.Conn, funcs[t_hide_cursor])
+		//io.WriteString(c.Conn, funcs[t_hide_cursor])
 	}
 
 	cursor_x, cursor_y = x, y
@@ -173,9 +173,6 @@ func SetCell(x, y int, ch rune, fg, bg Attribute, c Client) {
 		return
 	}
 
-	fmt.Print(fmt.Sprintf("%s", string(ch)))
-
-	//back_buffer.Cells[y*back_buffer.width+x] = Cell{ch, fg, bg}
 	c.Bbuffer.Cells[y*c.Bbuffer.Width+x] = Cell{ch, fg, bg}
 
 }
@@ -189,11 +186,12 @@ func Size() (width int, height int) {
 }
 
 // Clears the internal back buffer.
-func Clear(fg, bg Attribute, c Client) error {
+func Clear(fg, bg Attribute, c *Client) error {
 
 	foreground, background = fg, bg
 	err := update_size_maybe(c)
 	c.Bbuffer.clear()
+	c.Fbuffer.clear()
 
 	return err
 }

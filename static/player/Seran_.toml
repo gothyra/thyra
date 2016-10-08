@@ -1,4 +1,4 @@
-nickname = "Test"
+nickname = "Seran"
 STR = 9
 DEX = 9
 CON = 17
@@ -17,4 +17,4 @@ Armor = "Leather Armor"
 Weapon = "dagger"
 area = "City"
 room = "Inn"
-position = "7"
+position = "2"
