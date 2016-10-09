@@ -3,7 +3,7 @@ package game
 import (
 	"fmt"
 
-	log "github.com/golang/glog"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // private API, common OS agnostic part
