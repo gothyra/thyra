@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gothyra/toml"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -188,7 +189,7 @@ func (s *Server) OnExit(client Client) {
 	s.SavePlayer(*client.Player)
 	s.ClientLoggedOut(client.Player.Nickname)
 
-	client.WriteLineToUser(fmt.Sprintf("\nGood bye %s", client.Player.Nickname))
+	client.WriteLineToUser(fmt.Sprintf("\nGood bye %s\n\n", client.Player.Nickname))
 }
 
 func (s *Server) ClientLoggedIn(name string, client Client) {
@@ -441,7 +442,9 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]string, event string, map_array_pre [][]Cube) {
 
 	//log.Info(fmt.Sprintf("Previous Room %s : %s  ", client.Player.Nickname, client.Player.PreviousRoom))
-	buffexits := printExits(client, posarray)
+
+	var wg sync.WaitGroup
+
 	online := s.OnlineClients()
 
 	room := client.Player.Room
@@ -451,7 +454,7 @@ func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]stri
 
 	for i := range online {
 		c := online[i]
-
+		log.Info(fmt.Sprintf("Name : %s", client.Player.Nickname))
 		if c.Player.Room == room {
 			onlineSameRoom = append(onlineSameRoom, c)
 		} else if c.Player.Room == preroom {
@@ -462,19 +465,34 @@ func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]stri
 
 	for i := range onlineSameRoom {
 		c := onlineSameRoom[i]
+		buffexits := printExits(c, posarray)
 		bufmap := updateMap(s, c.Player, map_array)
 		buffintro := printIntro(s, c.Player.Area, c.Player.Room)
 		if c.Player.Nickname == client.Player.Nickname {
-			c.Reply <- Reply{world: bufmap.Bytes(),
-				events: event,
-				intro:  buffintro.Bytes(),
-				exits:  buffexits.String(),
-			}
-		} else {
-			c.Reply <- Reply{world: bufmap.Bytes(),
-				intro: buffintro.Bytes(),
-				exits: buffexits.String(),
-			}
+			time.Sleep(10 * time.Millisecond)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				c.Reply <- Reply{world: bufmap.Bytes(),
+					events: event,
+					intro:  buffintro.Bytes(),
+					exits:  buffexits.String(),
+				}
+
+			}()
+			wg.Wait()
+		} else if c.Player.Nickname != client.Player.Nickname {
+			time.Sleep(10 * time.Millisecond)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				c.Reply <- Reply{world: bufmap.Bytes(),
+					intro: buffintro.Bytes(),
+					exits: buffexits.String(),
+				}
+
+			}()
+			wg.Wait()
 
 		}
 
@@ -482,6 +500,7 @@ func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]stri
 
 	for i := range previousSameRoom {
 		c := previousSameRoom[i]
+		buffexits := printExits(c, posarray)
 		bufmap := updateMap(s, c.Player, map_array_pre)
 		buffintro := printIntro(s, c.Player.Area, c.Player.Room)
 		if c.Player.Nickname == client.Player.Nickname {
@@ -490,7 +509,7 @@ func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]stri
 				intro:  buffintro.Bytes(),
 				exits:  buffexits.String(),
 			}
-		} else {
+		} else if c.Player.Nickname != client.Player.Nickname {
 			c.Reply <- Reply{world: bufmap.Bytes(),
 				intro: buffintro.Bytes(),
 				exits: buffexits.String(),
