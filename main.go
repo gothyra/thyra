@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -12,10 +13,21 @@ import (
 
 	"github.com/gothyra/thyra/game"
 	log "gopkg.in/inconshreveable/log15.v2"
+	"gopkg.in/inconshreveable/log15.v2/stack"
 )
 
+func customFormat() log.Format {
+	return log.FormatFunc(func(r *log.Record) []byte {
+		b := &bytes.Buffer{}
+		call := stack.Call(r.CallPC[0])
+		fmt.Fprintf(b, "[%s %s:%d] %s\n", r.Time.Format("2006-01-02|15:04:05.000"), call, call, r.Msg)
+		return b.Bytes()
+	})
+}
+
 func init() {
-	log.Root().SetHandler(log.CallerFileHandler(log.StdoutHandler))
+	h := log.StreamHandler(os.Stdout, customFormat())
+	log.Root().SetHandler(h)
 }
 
 func main() {
