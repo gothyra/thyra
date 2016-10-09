@@ -1,11 +1,5 @@
 package game
 
-import (
-	"fmt"
-
-	log "github.com/golang/glog"
-)
-
 // private API, common OS agnostic part
 
 type Cellbuf struct {
@@ -15,8 +9,6 @@ type Cellbuf struct {
 }
 
 func New(Width, Height int) *Cellbuf {
-	//flag.Parse()
-	log.Info(fmt.Sprintf("Enter Cellbuf init %d , %d :", Width, Height))
 	return &Cellbuf{
 		Width:  Width,
 		Height: Height,
@@ -54,8 +46,6 @@ func (this *Cellbuf) resize(Width, Height int) {
 }
 
 func (this *Cellbuf) clear() {
-
-	log.Info(fmt.Sprintf("clear():Size Cells:", len(this.Cells)))
 	for i := range this.Cells {
 		c := &this.Cells[i]
 		c.Ch = ' '

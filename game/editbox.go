@@ -2,11 +2,9 @@ package game
 
 import (
 	"bytes"
-	"fmt"
 	"unicode/utf8"
 
 	"github.com/mattn/go-runewidth"
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func tbprint(x, y int, fg, bg Attribute, msg string, client Client) {
@@ -242,18 +240,14 @@ const edit_box_width = 120
 
 func redraw_all(c Client) {
 
-	log.Info(fmt.Sprintf("Redraw: %s ,W:%d H:%d ", c.Player.Nickname, c.Bbuffer.Width, c.Bbuffer.Height))
 	const coldef = ColorDefault
-
 	w, h := Size()
 
 	midy := h/2 + 12
 	midx := (w - edit_box_width) - 10
 
-	log.Info("Redraw : Before Reply")
 	reply := <-c.Reply
 	Clear(coldef, coldef, &c)
-	log.Info("Redraw : After Reply")
 	buf := bytes.NewBuffer(reply.world)
 	rintro := bytes.NewBuffer(reply.intro)
 
@@ -295,7 +289,6 @@ func redraw_all(c Client) {
 	tbprint(midx+90, midy-3, coldef, coldef, reply.exits, c)
 
 	Flush(&c)
-
 }
 
 func Go_editbox(c *Client) {
@@ -303,7 +296,6 @@ func Go_editbox(c *Client) {
 	if err != nil {
 		panic(err)
 	}
-	defer Close(*c)
 
 	for {
 		redraw_all(*c)

@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	"github.com/mattn/go-runewidth"
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func Init(c *Client) error {
@@ -17,7 +16,7 @@ func Init(c *Client) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	//defer out.Close()
 
 	err = setup_term()
 	if err != nil {
@@ -31,18 +30,14 @@ func Init(c *Client) error {
 
 	termw, termh = get_term_size(out.Fd())
 
-	log.Info(fmt.Sprintf("TermW:%d , TermH:%d ", termw, termh))
-
 	backb := New(termw, termh)
 	frontb := New(termw, termh)
 
-	log.Info("Clear Start")
 	backb.clear()
 	frontb.clear()
 
 	c.Bbuffer = backb
 	c.Fbuffer = frontb
-	log.Info(fmt.Sprintf("Init OK : %s", c.Player.Nickname))
 	return nil
 }
 
@@ -53,47 +48,55 @@ func Interrupt() {
 	interrupt_comm <- struct{}{}
 }
 
-// Finalizes termbox library, should be called after successful initialization
-// when termbox's functionality isn't required anymore.
-func Close(c Client) {
-
-	io.WriteString(c.Conn, funcs[t_show_cursor])
-	io.WriteString(c.Conn, funcs[t_sgr0])
-	io.WriteString(c.Conn, funcs[t_clear_screen])
-	io.WriteString(c.Conn, funcs[t_exit_ca])
-	io.WriteString(c.Conn, funcs[t_exit_keypad])
-	io.WriteString(c.Conn, funcs[t_exit_mouse])
-
-	// reset the state, so that on next Init() it will work again
-	termw = 0
-	termh = 0
-	//input_mode = InputEsc
-	out = nil
-	in = 0
-	lastfg = attr_invalid
-	lastbg = attr_invalid
-	lastx = coord_invalid
-	lasty = coord_invalid
-	cursor_x = cursor_hidden
-	cursor_y = cursor_hidden
-	//foreground = ColorDefault
-	//background = ColorDefault
-	//IsInit = false
-}
-
 // Synchronizes the internal back buffer with the terminal.
 func Flush(c *Client) error {
-	// invalidate cursor position
-	lastx = coord_invalid
-	lasty = coord_invalid
 
 	update_size_maybe(c)
-
-	log.Info(fmt.Sprintf("Frontbuffer W:%d H:%d"), c.Fbuffer.Width, c.Fbuffer.Height)
 	for y := 0; y < c.Fbuffer.Height; y++ {
 
 		line_offset := y * c.Fbuffer.Width
 
+		for x := 0; x < c.Fbuffer.Width; {
+			cell_offset := line_offset + x
+			back := &c.Bbuffer.Cells[cell_offset]
+			front := &c.Fbuffer.Cells[cell_offset]
+			if back.Ch < ' ' {
+				back.Ch = ' '
+			}
+			w := runewidth.RuneWidth(back.Ch)
+
+			if w == 0 || w == 2 && runewidth.IsAmbiguousWidth(back.Ch) {
+				w = 1
+			}
+			if *back == *front {
+				x += w
+				continue
+			}
+			*front = *back
+
+			if w == 2 && x == c.Fbuffer.Width-1 {
+
+				// there's not enough space for 2-cells rune,
+				// let's just put a space in there
+				send_char(x, y, ' ', *c)
+
+			} else {
+				send_char(x, y, back.Ch, *c)
+				if w == 2 {
+					next := cell_offset + 1
+					c.Bbuffer.Cells[next] = Cell{
+						Ch: 0,
+						Fg: back.Fg,
+						Bg: back.Bg,
+					}
+				}
+			}
+
+			x += w
+		}
+	}
+
+	/*
 		for x := 0; x < c.Fbuffer.Width; {
 			cell_offset := line_offset + x
 			back := c.Bbuffer.Cells[cell_offset]
@@ -111,7 +114,6 @@ func Flush(c *Client) error {
 				continue
 			}
 			front = back
-			//send_attr(back.Fg, back.Bg, c)
 
 			if w == 2 && x == c.Fbuffer.Width-1 {
 
@@ -123,7 +125,7 @@ func Flush(c *Client) error {
 				send_char(x, y, back.Ch, *c)
 				if w == 2 {
 					next := cell_offset + 1
-					c.Fbuffer.Cells[next] = Cell{
+					c.Bbuffer.Cells[next] = Cell{
 						Ch: 0,
 						Fg: back.Fg,
 						Bg: back.Bg,
@@ -133,12 +135,12 @@ func Flush(c *Client) error {
 
 			x += w
 		}
-	}
+	}*/
 	if !is_cursor_hidden(cursor_x, cursor_y) {
 		write_cursor(cursor_x, cursor_y, *c)
 	}
-	log.Info(fmt.Sprintf("Flush :%s", c.Player.Nickname))
-	return flush(*c)
+
+	return flush(c)
 }
 
 // Sets the position of the cursor. See also HideCursor().

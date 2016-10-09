@@ -3,15 +3,12 @@
 package game
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"syscall"
 	"unicode/utf8"
 	"unsafe"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // private API
@@ -116,11 +113,10 @@ func send_char(x, y int, ch rune, c Client) {
 	}
 	lastx, lasty = x, y
 	c.Buff.Write(buf[:n])
-
 	io.WriteString(c.Conn, c.Buff.String())
 }
 
-func flush(c Client) error {
+func flush(c *Client) error {
 	_, err := io.Copy(out, &c.Buff)
 	c.Buff.Reset()
 
@@ -137,15 +133,7 @@ func send_clear(c Client) error {
 		write_cursor(cursor_x, cursor_y, c)
 	}
 
-	// we need to invalidate cursor position too and these two vars are
-	// used only for simple cursor positioning optimization, cursor
-	// actually may be in the correct place, but we simply discard
-	// optimization once and it gives us simple solution for the case when
-	// cursor moved
-	lastx = coord_invalid
-	lasty = coord_invalid
-
-	return flush(c)
+	return flush(&c)
 }
 
 func update_size_maybe(c *Client) error {
@@ -154,14 +142,12 @@ func update_size_maybe(c *Client) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+
 	termw, termh = get_term_size(out.Fd())
 
 	c.Bbuffer.resize(termw, termh)
 	c.Fbuffer.resize(termw, termh)
 	c.Fbuffer.clear()
-
-	log.Info(fmt.Sprintf("New->W:%d H:%d", termw, termh))
 	return send_clear(*c)
 
 }

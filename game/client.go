@@ -47,7 +47,7 @@ func (c Client) do_tell(client []Client, msg string, name string) {
 }
 
 func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
-
+	c.Cmd <- ClientRequest{Client: c, Cmd: "empty"}
 	bufc := bufio.NewReader(c.Conn)
 	for {
 		line, err := bufc.ReadString('\n')
@@ -67,5 +67,5 @@ func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
 			return
 		}
 
-	} // end for
+	}
 }

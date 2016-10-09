@@ -301,7 +301,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	}
 	c.Player.PreviousRoom = c.Player.Room
 	switch command {
-	case "l", "look", "map":
+	case "l", "look", "map", "empty":
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 		printToUser(s, c, map_array, posarray, "", map_array)
 	case "e", "east":
@@ -440,13 +440,8 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 }
 
 func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]string, event string, map_array_pre [][]Cube) {
-
-	//log.Info(fmt.Sprintf("Previous Room %s : %s  ", client.Player.Nickname, client.Player.PreviousRoom))
-
 	var wg sync.WaitGroup
-
 	online := s.OnlineClients()
-
 	room := client.Player.Room
 	preroom := client.Player.PreviousRoom
 	var onlineSameRoom []Client
@@ -454,7 +449,6 @@ func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]stri
 
 	for i := range online {
 		c := online[i]
-		log.Info(fmt.Sprintf("Name : %s", client.Player.Nickname))
 		if c.Player.Room == room {
 			onlineSameRoom = append(onlineSameRoom, c)
 		} else if c.Player.Room == preroom {
