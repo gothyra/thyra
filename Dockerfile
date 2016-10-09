@@ -1,5 +1,4 @@
 FROM fedora
-MAINTAINER Michail Kargakis <kargakis@protonmail.ch>
 
 ENV GOPATH /go
 ENV THYRA_STATIC /go/src/github.com/gothyra/thyra/static/
