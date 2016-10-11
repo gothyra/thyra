@@ -21,6 +21,8 @@ func create_character_dice() {
 
 	dice := []int{0, 0, 0, 0}
 
+	var attribute *int
+
 	total := 0
 
 	for j := 0; j < 6; j++ {
