@@ -238,7 +238,7 @@ func broadcast(
 	server game.Server,
 	wg sync.WaitGroup,
 	quit <-chan struct{},
-	clientCh <-chan game.ClientRequest,
+	reqChan <-chan game.ClientRequest,
 	roomsMap map[string]map[string][][]game.Cube,
 ) {
 
@@ -246,8 +246,9 @@ func broadcast(
 
 	for {
 		select {
-		case client := <-clientCh:
-			server.HandleCommand(client.Client, client.Cmd, roomsMap)
+		case request := <-reqChan:
+
+			server.HandleCommand(request.Client, request.Cmd, roomsMap)
 
 		case <-quit:
 			return

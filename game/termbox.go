@@ -118,23 +118,26 @@ func send_char(x, y int, ch rune, c Client) {
 	c.Buff.Write(buf[:n])
 
 	io.WriteString(c.Conn, c.Buff.String())
+
 }
 
-func flush(c Client) error {
-	_, err := io.Copy(out, &c.Buff)
+func flush(c *Client) error {
+
+	//_, err := io.Copy(out, &c.Buff)
 	c.Buff.Reset()
 
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
-func send_clear(c Client) error {
+func send_clear(c *Client) error {
 	//send_attr(foreground, background, c)
-	io.WriteString(c.Conn, funcs[t_clear_screen])
+	//io.WriteString(c.Conn, funcs[t_clear_screen])
+	//c.Buff.WriteString(funcs[t_clear_screen])
+	log.Info("Before CLEAR SCREEN")
+	io.WriteString(c.Conn, "\033[2J")
+	log.Info("After CLEAR SCREEN")
 	if !is_cursor_hidden(cursor_x, cursor_y) {
-		write_cursor(cursor_x, cursor_y, c)
+		write_cursor(cursor_x, cursor_y, *c)
 	}
 
 	// we need to invalidate cursor position too and these two vars are
@@ -162,6 +165,6 @@ func update_size_maybe(c *Client) error {
 	c.Fbuffer.clear()
 
 	log.Info(fmt.Sprintf("New->W:%d H:%d", termw, termh))
-	return send_clear(*c)
+	return send_clear(c)
 
 }

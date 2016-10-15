@@ -102,7 +102,7 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 	return exitarr
 }
 
-func printExits(c Client, exit_array [][]string) bytes.Buffer { //Print exits,From returned [5]string findExits
+func printExits(exit_array [][]string) bytes.Buffer { //Print exits,From returned [5]string findExits
 
 	var buffer bytes.Buffer
 
@@ -131,13 +131,13 @@ func updateMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
 	var buffer bytes.Buffer
 
 	hasPlayer := map[string]string{}
-	pos := p.Position
+	//	pos := p.Position
 
 	for _, players := range server.OnlineClients() {
 
 		if players.Player.Room == p.Room {
 			if players.Player.Nickname == p.Nickname {
-				pos = p.Position
+				//pos = p.Position
 			}
 			hasPlayer[players.Player.Position] = players.Player.Nickname
 		}
@@ -154,11 +154,7 @@ func updateMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
 			case s[x][y].Type == "door":
 				buffer.WriteString("O|")
 			case ok:
-				if s[x][y].ID == pos {
-					buffer.WriteString("*|")
-				} else {
-					buffer.WriteString("a|")
-				}
+				buffer.WriteString("*|")
 			case s[x][y].ID == "":
 				buffer.WriteString("X|")
 			default:

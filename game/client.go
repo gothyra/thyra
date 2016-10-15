@@ -3,9 +3,12 @@ package game
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"net"
 	"strings"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type Client struct {
@@ -52,20 +55,18 @@ func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
 	for {
 		line, err := bufc.ReadString('\n')
 		if err != nil {
-
-			break
-
+			log.Info(fmt.Sprintf("%#v", err))
+			return
 		}
 		line = strings.TrimSpace(line)
 		if len(line) == 0 {
-			line = "empty"
+			continue
 		}
-
 		select {
 		case c.Cmd <- ClientRequest{Client: c, Cmd: line}:
 		case <-stopCh:
 			return
 		}
 
-	} // end for
+	}
 }
