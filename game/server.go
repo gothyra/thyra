@@ -299,14 +299,18 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		args = lineParts[1]
 	}
 	c.Player.PreviousRoom = c.Player.Room
+
 	switch command {
+
 	case "l", "look", "map":
-		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-		printToUser(s, c, map_array, posarray, "", map_array)
+		printToUser(s, c, map_array, "", map_array)
+
 	case "e", "east":
+
 		c.Player.PreviousRoom = c.Player.Room
 		c.Player.PreviousArea = c.Player.Area
 		map_array_pre := roomsMap[c.Player.PreviousArea][c.Player.PreviousRoom]
+
 		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)[0][1])
 		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)
 		if newpos > 0 {
@@ -317,15 +321,13 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Area = posarray[0][0]
 			c.Player.Room = posarray[0][2]
 			s.players[c.Player.Nickname] = *c.Player
-
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 
-			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)
-			printToUser(s, c, map_array, posarray, "", map_array_pre)
+			printToUser(s, c, map_array, "", map_array_pre)
 		} else {
 
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, posarray, msg, map_array_pre)
+			printToUser(s, c, map_array, msg, map_array_pre)
 		}
 
 	case "w", "west":
@@ -333,7 +335,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		c.Player.PreviousArea = c.Player.Area
 		map_array_pre := roomsMap[c.Player.PreviousArea][c.Player.PreviousRoom]
 		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[1][1])
-		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)
 
 		if newpos > 0 {
 			c.Player.Position = strconv.Itoa(newpos)
@@ -343,11 +345,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Area = posarray[1][0]
 			c.Player.Room = posarray[1][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
-			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-			printToUser(s, c, map_array, posarray, "", map_array_pre)
+			printToUser(s, c, map_array, "", map_array_pre)
 		} else {
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, posarray, msg, map_array_pre)
+			printToUser(s, c, map_array, msg, map_array_pre)
 		}
 
 	case "n", "north":
@@ -364,11 +365,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Area = posarray[2][0]
 			c.Player.Room = posarray[2][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
-			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-			printToUser(s, c, map_array, posarray, "", map_array_pre)
+			printToUser(s, c, map_array, "", map_array_pre)
 		} else {
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, posarray, msg, map_array_pre)
+			printToUser(s, c, map_array, msg, map_array_pre)
 		}
 
 	case "s", "south":
@@ -387,11 +387,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 
-			posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-			printToUser(s, c, map_array, posarray, "", map_array_pre)
+			printToUser(s, c, map_array, "", map_array_pre)
 		} else {
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, posarray, msg, map_array_pre)
+			printToUser(s, c, map_array, msg, map_array_pre)
 			log.Info(msg)
 		}
 	case "quit", "exit":
@@ -432,23 +431,19 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	}*/
 
 	default:
-		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+
 		msg := "Huh?"
-		printToUser(s, c, map_array, posarray, msg, map_array)
+		printToUser(s, c, map_array, msg, map_array)
 	}
 }
 
-func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]string, event string, map_array_pre [][]Cube) {
-
-	//log.Info(fmt.Sprintf("Previous Room %s : %s  ", client.Player.Nickname, client.Player.PreviousRoom))
-	buffexits := printExits(client, posarray)
-	online := s.OnlineClients()
-
+func printToUser(s *Server, client Client, map_array [][]Cube, event string, map_array_pre [][]Cube) {
 	room := client.Player.Room
 	preroom := client.Player.PreviousRoom
+
 	var onlineSameRoom []Client
 	var previousSameRoom []Client
-
+	online := s.OnlineClients()
 	for i := range online {
 		c := online[i]
 
@@ -460,44 +455,44 @@ func printToUser(s *Server, client Client, map_array [][]Cube, posarray [][]stri
 
 	}
 
+	buffintro := printIntro(s, client.Player.Area, client.Player.Room)
+	bufmap := updateMap(s, client.Player, map_array)
+
 	for i := range onlineSameRoom {
 		c := onlineSameRoom[i]
-		bufmap := updateMap(s, c.Player, map_array)
-		buffintro := printIntro(s, c.Player.Area, c.Player.Room)
-		if c.Player.Nickname == client.Player.Nickname {
-			c.Reply <- Reply{world: bufmap.Bytes(),
-				events: event,
-				intro:  buffintro.Bytes(),
-				exits:  buffexits.String(),
-			}
-		} else {
-			c.Reply <- Reply{world: bufmap.Bytes(),
-				intro: buffintro.Bytes(),
-				exits: buffexits.String(),
-			}
 
+		bufexits := printExits(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position))
+
+		reply := Reply{
+			world: bufmap.Bytes(),
+			intro: buffintro.Bytes(),
+			exits: bufexits.String(),
 		}
 
+		if c.Player.Nickname == client.Player.Nickname {
+			reply.events = event
+		}
+
+		c.Reply <- reply
 	}
 
 	for i := range previousSameRoom {
 		c := previousSameRoom[i]
+
+		buffexits := printExits(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position))
+
 		bufmap := updateMap(s, c.Player, map_array_pre)
 		buffintro := printIntro(s, c.Player.Area, c.Player.Room)
-		if c.Player.Nickname == client.Player.Nickname {
-			c.Reply <- Reply{world: bufmap.Bytes(),
-				events: event,
-				intro:  buffintro.Bytes(),
-				exits:  buffexits.String(),
-			}
-		} else {
-			c.Reply <- Reply{world: bufmap.Bytes(),
-				intro: buffintro.Bytes(),
-				exits: buffexits.String(),
-			}
 
+		reply := Reply{
+			world: bufmap.Bytes(),
+			intro: buffintro.Bytes(),
+			exits: buffexits.String(),
 		}
 
+		if c.Player.Nickname == client.Player.Nickname {
+			reply.events = event
+		}
+		c.Reply <- reply
 	}
-
 }

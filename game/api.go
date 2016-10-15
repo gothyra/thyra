@@ -6,7 +6,8 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/mattn/go-runewidth"
+	runewidth "github.com/mattn/go-runewidth"
+
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
@@ -87,14 +88,17 @@ func Flush(c *Client) error {
 	lastx = coord_invalid
 	lasty = coord_invalid
 
-	update_size_maybe(c)
+	//update_size_maybe(c)
+	log.Info("Before FOR")
 
-	log.Info(fmt.Sprintf("Frontbuffer W:%d H:%d"), c.Fbuffer.Width, c.Fbuffer.Height)
-	for y := 0; y < c.Fbuffer.Height; y++ {
+	width := c.Fbuffer.Width
+	height := c.Fbuffer.Height
 
-		line_offset := y * c.Fbuffer.Width
+	for y := 0; y < height; y++ {
 
-		for x := 0; x < c.Fbuffer.Width; {
+		line_offset := y * width
+
+		for x := 0; x < width; {
 			cell_offset := line_offset + x
 			back := c.Bbuffer.Cells[cell_offset]
 			front := c.Fbuffer.Cells[cell_offset]
@@ -113,7 +117,7 @@ func Flush(c *Client) error {
 			front = back
 			//send_attr(back.Fg, back.Bg, c)
 
-			if w == 2 && x == c.Fbuffer.Width-1 {
+			if w == 2 && x == width-1 {
 
 				// there's not enough space for 2-cells rune,
 				// let's just put a space in there
@@ -134,11 +138,13 @@ func Flush(c *Client) error {
 			x += w
 		}
 	}
+	log.Info("After FOR")
+
 	if !is_cursor_hidden(cursor_x, cursor_y) {
 		write_cursor(cursor_x, cursor_y, *c)
 	}
 	log.Info(fmt.Sprintf("Flush :%s", c.Player.Nickname))
-	return flush(*c)
+	return flush(c)
 }
 
 // Sets the position of the cursor. See also HideCursor().
@@ -191,7 +197,6 @@ func Clear(fg, bg Attribute, c *Client) error {
 	foreground, background = fg, bg
 	err := update_size_maybe(c)
 	c.Bbuffer.clear()
-	c.Fbuffer.clear()
 
 	return err
 }

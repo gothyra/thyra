@@ -241,7 +241,7 @@ var edit_box EditBox
 const edit_box_width = 120
 
 func redraw_all(c Client) {
-
+	Flush(&c)
 	log.Info(fmt.Sprintf("Redraw: %s ,W:%d H:%d ", c.Player.Nickname, c.Bbuffer.Width, c.Bbuffer.Height))
 	const coldef = ColorDefault
 
@@ -253,6 +253,7 @@ func redraw_all(c Client) {
 	log.Info("Redraw : Before Reply")
 	reply := <-c.Reply
 	Clear(coldef, coldef, &c)
+	//EmptyPage(&c)
 	log.Info("Redraw : After Reply")
 	buf := bytes.NewBuffer(reply.world)
 	rintro := bytes.NewBuffer(reply.intro)
@@ -294,8 +295,6 @@ func redraw_all(c Client) {
 	tbprint(midx, midy-10, coldef, coldef, reply.events, c)
 	tbprint(midx+90, midy-3, coldef, coldef, reply.exits, c)
 
-	Flush(&c)
-
 }
 
 func Go_editbox(c *Client) {
@@ -309,4 +308,13 @@ func Go_editbox(c *Client) {
 		redraw_all(*c)
 
 	}
+}
+
+func EmptyPage(c *Client) {
+	w, h := Size()
+
+	midy := h/2 + 12
+	midx := (w - edit_box_width) - 10
+	tbprint(midx, midy, ColorDefault, ColorDefault, "\033[2J", *c)
+
 }
