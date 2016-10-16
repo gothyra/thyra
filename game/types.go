@@ -10,7 +10,7 @@ type Reply struct {
 }
 
 type ClientRequest struct {
-	Client Client
+	Client *Client
 	Cmd    string
 }
 

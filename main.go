@@ -211,14 +211,14 @@ out:
 
 	player, _ := server.GetPlayerByNick(username)
 
-	reply := make(chan game.Reply)
+	reply := make(chan game.Reply, 1)
 
 	client := game.NewClient(c, &player, clientCh, reply)
 
-	go game.Go_editbox(&client)
+	go game.Go_editbox(client)
 
 	log.Info(fmt.Sprintf("Player %q got connected", client.Player.Nickname))
-	server.ClientLoggedIn(client.Player.Nickname, client)
+	server.ClientLoggedIn(client.Player.Nickname, *client)
 	client.ReadLinesInto(quit)
 	log.Info(fmt.Sprintf("Connection from %v closed.", c.RemoteAddr()))
 }
@@ -248,7 +248,7 @@ func broadcast(
 		select {
 		case request := <-reqChan:
 
-			server.HandleCommand(request.Client, request.Cmd, roomsMap)
+			server.HandleCommand(*request.Client, request.Cmd, roomsMap)
 
 		case <-quit:
 			return

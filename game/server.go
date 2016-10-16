@@ -303,7 +303,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	switch command {
 
 	case "l", "look", "map":
-		printToUser(s, c, map_array, "", map_array)
+		printToUser(s, c.Reply, c.Player, map_array, "", map_array)
 
 	case "e", "east":
 
@@ -323,11 +323,11 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			s.players[c.Player.Nickname] = *c.Player
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 
-			printToUser(s, c, map_array, "", map_array_pre)
+			printToUser(s, c.Reply, c.Player, map_array, "", map_array_pre)
 		} else {
 
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, msg, map_array_pre)
+			printToUser(s, c.Reply, c.Player, map_array, msg, map_array_pre)
 		}
 
 	case "w", "west":
@@ -345,10 +345,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Area = posarray[1][0]
 			c.Player.Room = posarray[1][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
-			printToUser(s, c, map_array, "", map_array_pre)
+			printToUser(s, c.Reply, c.Player, map_array, "", map_array_pre)
 		} else {
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, msg, map_array_pre)
+			printToUser(s, c.Reply, c.Player, map_array, msg, map_array_pre)
 		}
 
 	case "n", "north":
@@ -365,10 +365,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 			c.Player.Area = posarray[2][0]
 			c.Player.Room = posarray[2][2]
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
-			printToUser(s, c, map_array, "", map_array_pre)
+			printToUser(s, c.Reply, c.Player, map_array, "", map_array_pre)
 		} else {
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, msg, map_array_pre)
+			printToUser(s, c.Reply, c.Player, map_array, msg, map_array_pre)
 		}
 
 	case "s", "south":
@@ -387,10 +387,10 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 			map_array := roomsMap[c.Player.Area][c.Player.Room]
 
-			printToUser(s, c, map_array, "", map_array_pre)
+			printToUser(s, c.Reply, c.Player, map_array, "", map_array_pre)
 		} else {
 			msg := "You can't go that way"
-			printToUser(s, c, map_array, msg, map_array_pre)
+			printToUser(s, c.Reply, c.Player, map_array, msg, map_array_pre)
 			log.Info(msg)
 		}
 	case "quit", "exit":
@@ -398,7 +398,7 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		c.Conn.Close()
 
 	case "fight":
-		do_fight(c)
+	//	do_fight(c)
 
 	case "create":
 		create_character()
@@ -433,13 +433,13 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 	default:
 
 		msg := "Huh?"
-		printToUser(s, c, map_array, msg, map_array)
+		printToUser(s, c.Reply, c.Player, map_array, msg, map_array)
 	}
 }
 
-func printToUser(s *Server, client Client, map_array [][]Cube, event string, map_array_pre [][]Cube) {
-	room := client.Player.Room
-	preroom := client.Player.PreviousRoom
+func printToUser(s *Server, replyChan chan Reply, p *Player, map_array [][]Cube, event string, map_array_pre [][]Cube) {
+	room := p.Room
+	preroom := p.PreviousRoom
 
 	var onlineSameRoom []Client
 	var previousSameRoom []Client
@@ -452,14 +452,17 @@ func printToUser(s *Server, client Client, map_array [][]Cube, event string, map
 		} else if c.Player.Room == preroom {
 			previousSameRoom = append(previousSameRoom, c)
 		}
-
 	}
 
-	buffintro := printIntro(s, client.Player.Area, client.Player.Room)
-	bufmap := updateMap(s, client.Player, map_array)
+	buffintro := printIntro(s, p.Area, p.Room)
+	bufmap := updateMap(s, p, map_array)
 
+	log.Info("Online players in the same room:")
 	for i := range onlineSameRoom {
+
 		c := onlineSameRoom[i]
+
+		log.Info(fmt.Sprintf("%s", c.Player.Nickname))
 
 		bufexits := printExits(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position))
 
@@ -469,10 +472,11 @@ func printToUser(s *Server, client Client, map_array [][]Cube, event string, map
 			exits: bufexits.String(),
 		}
 
-		if c.Player.Nickname == client.Player.Nickname {
+		if c.Player.Nickname == p.Nickname {
 			reply.events = event
 		}
 
+		//log.Info(fmt.Sprintf("%s:\n %s", c.Player.Nickname, reply.intro))
 		c.Reply <- reply
 	}
 
@@ -490,9 +494,10 @@ func printToUser(s *Server, client Client, map_array [][]Cube, event string, map
 			exits: buffexits.String(),
 		}
 
-		if c.Player.Nickname == client.Player.Nickname {
+		if c.Player.Nickname == p.Nickname {
 			reply.events = event
 		}
+
 		c.Reply <- reply
 	}
 }

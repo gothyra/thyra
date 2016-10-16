@@ -122,20 +122,14 @@ func send_char(x, y int, ch rune, c Client) {
 }
 
 func flush(c *Client) error {
-
-	//_, err := io.Copy(out, &c.Buff)
 	c.Buff.Reset()
-
 	return nil
 }
 
 func send_clear(c *Client) error {
-	//send_attr(foreground, background, c)
-	//io.WriteString(c.Conn, funcs[t_clear_screen])
-	//c.Buff.WriteString(funcs[t_clear_screen])
-	log.Info("Before CLEAR SCREEN")
+
 	io.WriteString(c.Conn, "\033[2J")
-	log.Info("After CLEAR SCREEN")
+
 	if !is_cursor_hidden(cursor_x, cursor_y) {
 		write_cursor(cursor_x, cursor_y, *c)
 	}
@@ -152,13 +146,9 @@ func send_clear(c *Client) error {
 }
 
 func update_size_maybe(c *Client) error {
-	var err error
-	out, err = os.OpenFile("/dev/tty", syscall.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	termw, termh = get_term_size(out.Fd())
+
+	//TODO : get terminal size from client
+	termw, termh = 132, 32
 
 	c.Bbuffer.resize(termw, termh)
 	c.Fbuffer.resize(termw, termh)

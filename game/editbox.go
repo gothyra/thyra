@@ -9,11 +9,9 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-func tbprint(x, y int, fg, bg Attribute, msg string, client Client) {
+func tbprint(x, y int, fg, bg Attribute, msg string, client *Client) {
 
 	for _, c := range msg {
-		//log.Info(fmt.Sprintf("%s", string(c)))
-
 		SetCell(x, y, c, fg, bg, client)
 		x += runewidth.RuneWidth(c)
 
@@ -21,7 +19,7 @@ func tbprint(x, y int, fg, bg Attribute, msg string, client Client) {
 
 }
 
-func fill(x, y, w, h int, cell Cell, c Client) {
+func fill(x, y, w, h int, cell Cell, c *Client) {
 	for ly := 0; ly < h; ly++ {
 		for lx := 0; lx < w; lx++ {
 			SetCell(x+lx, y+ly, cell.Ch, cell.Fg, cell.Bg, c)
@@ -84,7 +82,7 @@ type EditBox struct {
 }
 
 // Draws the EditBox in the given location, 'h' is not used at the moment
-func (eb *EditBox) Draw(x, y, w, h int, c Client) {
+func (eb *EditBox) Draw(x, y, w, h int, c *Client) {
 	eb.AdjustVOffset(w)
 
 	const coldef = ColorDefault
@@ -240,8 +238,7 @@ var edit_box EditBox
 
 const edit_box_width = 120
 
-func redraw_all(c Client) {
-	Flush(&c)
+func redraw_all(c *Client) {
 	log.Info(fmt.Sprintf("Redraw: %s ,W:%d H:%d ", c.Player.Nickname, c.Bbuffer.Width, c.Bbuffer.Height))
 	const coldef = ColorDefault
 
@@ -252,11 +249,12 @@ func redraw_all(c Client) {
 
 	log.Info("Redraw : Before Reply")
 	reply := <-c.Reply
-	Clear(coldef, coldef, &c)
-	//EmptyPage(&c)
+	Clear(coldef, coldef, c)
 	log.Info("Redraw : After Reply")
 	buf := bytes.NewBuffer(reply.world)
 	rintro := bytes.NewBuffer(reply.intro)
+
+	//log.Info(fmt.Sprintf("%s\n%s\n%s\n%s\n", c.Player.Nickname, buf, rintro, reply.exits))
 
 	// Editbox
 	SetCell(midx-1, midy, '│', coldef, coldef, c)
@@ -268,7 +266,7 @@ func redraw_all(c Client) {
 	fill(midx, midy-1, edit_box_width, 1, Cell{Ch: '─'}, c)
 	fill(midx, midy+1, edit_box_width, 1, Cell{Ch: '─'}, c)
 
-	SetCursor(midx+edit_box.CursorX(), midy, c)
+	SetCursor(midx+edit_box.CursorX(), midy, *c)
 
 	counter := 20
 	for {
@@ -279,8 +277,8 @@ func redraw_all(c Client) {
 		}
 		tbprint(midx+100, midy-counter, coldef, coldef, line, c)
 		counter--
-
 	}
+
 	counter2 := 20
 	for {
 		line, err := rintro.ReadString('\n')
@@ -294,7 +292,7 @@ func redraw_all(c Client) {
 
 	tbprint(midx, midy-10, coldef, coldef, reply.events, c)
 	tbprint(midx+90, midy-3, coldef, coldef, reply.exits, c)
-
+	Flush(c)
 }
 
 func Go_editbox(c *Client) {
@@ -305,16 +303,7 @@ func Go_editbox(c *Client) {
 	defer Close(*c)
 
 	for {
-		redraw_all(*c)
+		redraw_all(c)
 
 	}
-}
-
-func EmptyPage(c *Client) {
-	w, h := Size()
-
-	midy := h/2 + 12
-	midx := (w - edit_box_width) - 10
-	tbprint(midx, midy, ColorDefault, ColorDefault, "\033[2J", *c)
-
 }
