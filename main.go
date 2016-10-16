@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/gothyra/thyra/game"
@@ -244,14 +245,178 @@ func broadcast(
 
 	defer wg.Done()
 
+	go god(&server, roomsMap)
+
 	for {
 		select {
 		case request := <-reqChan:
-
 			server.HandleCommand(*request.Client, request.Cmd, roomsMap)
-
 		case <-quit:
 			return
 		}
 	}
+}
+
+func god(s *game.Server, roomsMap map[string]map[string][][]game.Cube) {
+
+	for {
+		select {
+		case ev := <-s.Events:
+			c := ev.Client
+			map_array := roomsMap[c.Player.Area][c.Player.Room]
+			switch ev.Etype {
+
+			case "look":
+				godPrint(s, c, map_array, "")
+			case "move_east":
+				msg := ""
+				if !move_east(s, *c, map_array) {
+					msg = "You can't go that way"
+				}
+				godPrint(s, c, map_array, msg)
+
+			case "move_west":
+				msg := ""
+				if !move_west(s, *c, map_array) {
+					msg = "You can't go that way"
+				}
+				godPrint(s, c, map_array, msg)
+			case "move_north":
+				msg := ""
+				if !move_north(s, *c, map_array) {
+					msg = "You can't go that way"
+				}
+				godPrint(s, c, map_array, msg)
+			case "move_south":
+				msg := ""
+				if !move_south(s, *c, map_array) {
+					msg = "You can't go that way"
+				}
+				godPrint(s, c, map_array, msg)
+
+			case "quit":
+				s.OnExit(*c)
+				c.Conn.Close()
+			}
+
+		}
+	}
+
+}
+
+func godPrint(s *game.Server, client *game.Client, map_array [][]game.Cube, msg string) {
+
+	room := client.Player.Room
+
+	var onlineSameRoom []game.Client
+	//var previousSameRoom []game.Client
+	online := s.OnlineClients()
+	for i := range online {
+		c := online[i]
+
+		if c.Player.Room == room {
+			onlineSameRoom = append(onlineSameRoom, c)
+		}
+	}
+	p := client.Player
+
+	log.Info("Online players in the same room:")
+	for i := range onlineSameRoom {
+
+		c := onlineSameRoom[i]
+
+		log.Info(fmt.Sprintf("%s", c.Player.Nickname))
+		buffintro := game.PrintIntro(s, p.Area, p.Room)
+		bufmap := game.UpdateMap(s, p, map_array)
+		bufexits := game.PrintExits(game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position))
+
+		reply := game.Reply{
+			World: bufmap.Bytes(),
+			Intro: buffintro.Bytes(),
+			Exits: bufexits.String(),
+		}
+
+		if c.Player.Nickname == p.Nickname {
+			reply.Events = msg
+		}
+
+		c.Reply <- reply
+	}
+
+}
+
+func move_east(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
+
+	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)[0][1])
+	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)
+
+	if newpos > 0 {
+
+		c.Player.Position = strconv.Itoa(newpos)
+		delete(s.Players, c.Player.Nickname)
+		c.Player.Area = posarray[0][0]
+		c.Player.Room = posarray[0][2]
+		s.Players[c.Player.Nickname] = *c.Player
+		return true
+	} else {
+		return false
+	}
+
+}
+
+func move_west(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
+
+	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)[1][1])
+	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)
+
+	if newpos > 0 {
+
+		c.Player.Position = strconv.Itoa(newpos)
+		delete(s.Players, c.Player.Nickname)
+		c.Player.Area = posarray[1][0]
+		c.Player.Room = posarray[1][2]
+		s.Players[c.Player.Nickname] = *c.Player
+		return true
+	} else {
+		return false
+	}
+
+}
+
+func move_north(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
+
+	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)[2][1])
+	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)
+
+	if newpos > 0 {
+
+		c.Player.Position = strconv.Itoa(newpos)
+		delete(s.Players, c.Player.Nickname)
+		c.Player.Area = posarray[2][0]
+		c.Player.Room = posarray[2][2]
+		s.Players[c.Player.Nickname] = *c.Player
+		return true
+	} else {
+		return false
+	}
+
+}
+
+func move_south(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
+
+	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)[3][1])
+	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)
+
+	if newpos > 0 {
+
+		c.Player.Position = strconv.Itoa(newpos)
+		delete(s.Players, c.Player.Nickname)
+		c.Player.Area = posarray[3][0]
+		c.Player.Room = posarray[3][2]
+		s.Players[c.Player.Nickname] = *c.Player
+		return true
+	} else {
+		return false
+	}
+
 }

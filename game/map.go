@@ -102,7 +102,7 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 	return exitarr
 }
 
-func printExits(exit_array [][]string) bytes.Buffer { //Print exits,From returned [5]string findExits
+func PrintExits(exit_array [][]string) bytes.Buffer { //Print exits,From returned [5]string findExits
 
 	var buffer bytes.Buffer
 
@@ -126,7 +126,7 @@ func printExits(exit_array [][]string) bytes.Buffer { //Print exits,From returne
 
 }
 
-func updateMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
+func UpdateMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
 
 	var buffer bytes.Buffer
 
@@ -167,7 +167,7 @@ func updateMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
 	return buffer
 }
 
-func printIntro(s *Server, areaID, room string) bytes.Buffer { // Print to intro tis area
+func PrintIntro(s *Server, areaID, room string) bytes.Buffer { // Print to intro tis area
 
 	var buffer bytes.Buffer
 
