@@ -33,7 +33,7 @@ func init() {
 
 func main() {
 	// Environment variables
-	//flag.Parse()
+	flag.Parse()
 	staticDir := os.Getenv("THYRA_STATIC")
 	if len(staticDir) == 0 {
 		pwd, _ := os.Getwd()
