@@ -21,8 +21,18 @@ type Client struct {
 	Fbuffer *Cellbuf
 }
 
-func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest, reply chan Reply) Client {
-	client := Client{
+type Clients []Client
+
+func (cl Clients) String() string {
+	var clients []string
+	for _, c := range cl {
+		clients = append(clients, c.Player.Nickname)
+	}
+	return fmt.Sprintf("%#v", clients)
+}
+
+func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest, reply chan Reply) *Client {
+	client := &Client{
 		Conn:    c,
 		Player:  player,
 		Cmd:     cmd,
@@ -63,7 +73,7 @@ func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
 			continue
 		}
 		select {
-		case c.Cmd <- ClientRequest{Client: c, Cmd: line}:
+		case c.Cmd <- ClientRequest{Client: &c, Cmd: line}:
 		case <-stopCh:
 			return
 		}

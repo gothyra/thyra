@@ -170,7 +170,7 @@ func HideCursor(c Client) {
 
 // Changes cell's parameters in the internal back buffer at the specified
 // position.
-func SetCell(x, y int, ch rune, fg, bg Attribute, c Client) {
+func SetCell(x, y int, ch rune, fg, bg Attribute, c *Client) {
 
 	if x < 0 || x >= c.Bbuffer.Width {
 		return
