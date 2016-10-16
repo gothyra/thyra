@@ -3,10 +3,15 @@ package game
 import "net"
 
 type Reply struct {
-	world  []byte
-	events string
-	intro  []byte
-	exits  string
+	World  []byte
+	Events string
+	Intro  []byte
+	Exits  string
+}
+
+type Event struct {
+	Client *Client
+	Etype  string
 }
 
 type ClientRequest struct {

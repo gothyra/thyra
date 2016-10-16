@@ -251,8 +251,8 @@ func redraw_all(c *Client) {
 	reply := <-c.Reply
 	Clear(coldef, coldef, c)
 	log.Info("Redraw : After Reply")
-	buf := bytes.NewBuffer(reply.world)
-	rintro := bytes.NewBuffer(reply.intro)
+	buf := bytes.NewBuffer(reply.World)
+	rintro := bytes.NewBuffer(reply.Intro)
 
 	//log.Info(fmt.Sprintf("%s\n%s\n%s\n%s\n", c.Player.Nickname, buf, rintro, reply.exits))
 
@@ -290,8 +290,8 @@ func redraw_all(c *Client) {
 		counter2--
 	}
 
-	tbprint(midx, midy-10, coldef, coldef, reply.events, c)
-	tbprint(midx+90, midy-3, coldef, coldef, reply.exits, c)
+	tbprint(midx, midy-10, coldef, coldef, reply.Events, c)
+	tbprint(midx+90, midy-3, coldef, coldef, reply.Exits, c)
 	Flush(c)
 }
 

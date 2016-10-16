@@ -22,9 +22,10 @@ type Config struct {
 
 type Server struct {
 	sync.RWMutex
-	players       map[string]Player
+	Players       map[string]Player
 	onlineClients map[string]*Client
 	Areas         map[string]Area
+	Events        chan Event
 
 	staticDir string
 	Config    Config
@@ -32,10 +33,11 @@ type Server struct {
 
 func NewServer(staticDir string) *Server {
 	return &Server{
-		players:       make(map[string]Player),
+		Players:       make(map[string]Player),
 		onlineClients: make(map[string]*Client),
 		Areas:         make(map[string]Area),
 		staticDir:     staticDir,
+		Events:        make(chan Event, 1000),
 	}
 }
 
@@ -131,13 +133,13 @@ func (s *Server) LoadPlayer(playerName string) (bool, error) {
 
 	log.Info(fmt.Sprintf("Loaded player %q", player.Nickname))
 	// TODO: Lock
-	s.players[player.Nickname] = player
+	s.Players[player.Nickname] = player
 
 	return true, nil
 }
 
 func (s *Server) GetPlayerByNick(nickname string) (Player, bool) {
-	player, ok := s.players[nickname]
+	player, ok := s.Players[nickname]
 	return player, ok
 }
 
@@ -161,7 +163,7 @@ func (s *Server) CreatePlayer(nick string) {
 		Position: "1",
 	}
 	// TODO: Lock
-	s.players[player.Nickname] = player
+	s.Players[player.Nickname] = player
 }
 
 func (s *Server) SavePlayer(player Player) bool {
@@ -287,124 +289,37 @@ func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
 // TODO: Remove from Server
 func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map[string][][]Cube) {
 
-	map_array := roomsMap[c.Player.Area][c.Player.Room]
+	//map_array := roomsMap[c.Player.Area][c.Player.Room]
 
 	lineParts := strings.SplitN(command, " ", 2)
 
-	var args string
+	//	var args string
 	if len(lineParts) > 0 {
 		command = lineParts[0]
 	}
 	if len(lineParts) > 1 {
-		args = lineParts[1]
+		//args = lineParts[1]
 	}
-	c.Player.PreviousRoom = c.Player.Room
+	//c.Player.PreviousRoom = c.Player.Room
+
+	event := Event{
+		Client: &c,
+	}
 
 	switch command {
 
 	case "l", "look", "map":
-		printToUser(s, c.Reply, c.Player, map_array, "", map_array)
-
+		event.Etype = "look"
 	case "e", "east":
-
-		c.Player.PreviousRoom = c.Player.Room
-		c.Player.PreviousArea = c.Player.Area
-		map_array_pre := roomsMap[c.Player.PreviousArea][c.Player.PreviousRoom]
-
-		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)[0][1])
-		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)
-		if newpos > 0 {
-
-			c.Player.Position = strconv.Itoa(newpos)
-
-			delete(s.players, c.Player.Nickname)
-			c.Player.Area = posarray[0][0]
-			c.Player.Room = posarray[0][2]
-			s.players[c.Player.Nickname] = *c.Player
-			map_array := roomsMap[c.Player.Area][c.Player.Room]
-
-			printToUser(s, c.Reply, c.Player, map_array, "", map_array_pre)
-		} else {
-
-			msg := "You can't go that way"
-			printToUser(s, c.Reply, c.Player, map_array, msg, map_array_pre)
-		}
-
+		event.Etype = "move_east"
 	case "w", "west":
-		c.Player.PreviousRoom = c.Player.Room
-		c.Player.PreviousArea = c.Player.Area
-		map_array_pre := roomsMap[c.Player.PreviousArea][c.Player.PreviousRoom]
-		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[1][1])
-		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, s.players[c.Player.Nickname].Position)
-
-		if newpos > 0 {
-			c.Player.Position = strconv.Itoa(newpos)
-
-			delete(s.players, c.Player.Nickname)
-			s.players[c.Player.Nickname] = *c.Player
-			c.Player.Area = posarray[1][0]
-			c.Player.Room = posarray[1][2]
-			map_array := roomsMap[c.Player.Area][c.Player.Room]
-			printToUser(s, c.Reply, c.Player, map_array, "", map_array_pre)
-		} else {
-			msg := "You can't go that way"
-			printToUser(s, c.Reply, c.Player, map_array, msg, map_array_pre)
-		}
-
+		event.Etype = "move_west"
 	case "n", "north":
-		c.Player.PreviousRoom = c.Player.Room
-		c.Player.PreviousArea = c.Player.Area
-		map_array_pre := roomsMap[c.Player.PreviousArea][c.Player.PreviousRoom]
-		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[2][1])
-		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-		if newpos > 0 {
-			c.Player.Position = strconv.Itoa(newpos)
-
-			delete(s.players, c.Player.Nickname)
-			s.players[c.Player.Nickname] = *c.Player
-			c.Player.Area = posarray[2][0]
-			c.Player.Room = posarray[2][2]
-			map_array := roomsMap[c.Player.Area][c.Player.Room]
-			printToUser(s, c.Reply, c.Player, map_array, "", map_array_pre)
-		} else {
-			msg := "You can't go that way"
-			printToUser(s, c.Reply, c.Player, map_array, msg, map_array_pre)
-		}
-
+		event.Etype = "move_north"
 	case "s", "south":
-		c.Player.PreviousRoom = c.Player.Room
-		c.Player.PreviousArea = c.Player.Area
-		map_array_pre := roomsMap[c.Player.PreviousArea][c.Player.PreviousRoom]
-		newpos, _ := strconv.Atoi(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[3][1])
-		posarray := FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-		if newpos > 0 {
-			c.Player.Position = strconv.Itoa(newpos)
-
-			delete(s.players, c.Player.Nickname)
-			c.Player.Area = posarray[3][0]
-			c.Player.Room = posarray[3][2]
-			s.players[c.Player.Nickname] = *c.Player
-
-			map_array := roomsMap[c.Player.Area][c.Player.Room]
-
-			printToUser(s, c.Reply, c.Player, map_array, "", map_array_pre)
-		} else {
-			msg := "You can't go that way"
-			printToUser(s, c.Reply, c.Player, map_array, msg, map_array_pre)
-			log.Info(msg)
-		}
+		event.Etype = "move_south"
 	case "quit", "exit":
-		s.OnExit(c)
-		c.Conn.Close()
-
-	case "fight":
-	//	do_fight(c)
-
-	case "create":
-		create_character()
-
-	case "tell":
-		c.do_tell(s.OnlineClients(), args, c.Player.Nickname)
+		event.Etype = "quit"
 
 	/*case "list":
 	for i := range map_array {
@@ -432,11 +347,13 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 
 	default:
 
-		msg := "Huh?"
-		printToUser(s, c.Reply, c.Player, map_array, msg, map_array)
+		//msg := "Huh?"
+		//PrintToUser(s, c.Reply, c.Player, map_array, msg, map_array)
 	}
+	s.Events <- event
 }
 
+/*
 func printToUser(s *Server, replyChan chan Reply, p *Player, map_array [][]Cube, event string, map_array_pre [][]Cube) {
 	room := p.Room
 	preroom := p.PreviousRoom
@@ -501,3 +418,4 @@ func printToUser(s *Server, replyChan chan Reply, p *Player, map_array [][]Cube,
 		c.Reply <- reply
 	}
 }
+*/
