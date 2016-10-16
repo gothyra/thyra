@@ -257,13 +257,13 @@ func broadcast(
 	}
 }
 
-func god(s *game.Server, roomsMap map[string]map[string][][]game.Cube) {
+func god(s *game.Server, map_array map[string]map[string][][]game.Cube) {
 
 	for {
 		select {
 		case ev := <-s.Events:
 			c := ev.Client
-			map_array := roomsMap[c.Player.Area][c.Player.Room]
+
 			switch ev.Etype {
 
 			case "look":
@@ -304,9 +304,10 @@ func god(s *game.Server, roomsMap map[string]map[string][][]game.Cube) {
 
 }
 
-func godPrint(s *game.Server, client *game.Client, map_array [][]game.Cube, msg string) {
+func godPrint(s *game.Server, client *game.Client, roomsMap map[string]map[string][][]game.Cube, msg string) {
 
 	room := client.Player.Room
+	map_array := roomsMap[client.Player.Area][client.Player.Room]
 
 	var onlineSameRoom []game.Client
 	//var previousSameRoom []game.Client
@@ -345,10 +346,10 @@ func godPrint(s *game.Server, client *game.Client, map_array [][]game.Cube, msg 
 
 }
 
-func move_east(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
-
-	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)[0][1])
-	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)
+func move_east(s *game.Server, c game.Client, roomsMap map[string]map[string][][]game.Cube) bool {
+	map_array := roomsMap[c.Player.Area][c.Player.Room]
+	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[0][1])
+	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 
 	if newpos > 0 {
 
@@ -364,10 +365,10 @@ func move_east(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
 
 }
 
-func move_west(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
-
-	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)[1][1])
-	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)
+func move_west(s *game.Server, c game.Client, roomsMap map[string]map[string][][]game.Cube) bool {
+	map_array := roomsMap[c.Player.Area][c.Player.Room]
+	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[1][1])
+	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 
 	if newpos > 0 {
 
@@ -383,10 +384,10 @@ func move_west(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
 
 }
 
-func move_north(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
-
-	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)[2][1])
-	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)
+func move_north(s *game.Server, c game.Client, roomsMap map[string]map[string][][]game.Cube) bool {
+	map_array := roomsMap[c.Player.Area][c.Player.Room]
+	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[2][1])
+	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 
 	if newpos > 0 {
 
@@ -402,10 +403,10 @@ func move_north(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
 
 }
 
-func move_south(s *game.Server, c game.Client, map_array [][]game.Cube) bool {
-
-	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)[3][1])
-	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, s.Players[c.Player.Nickname].Position)
+func move_south(s *game.Server, c game.Client, roomsMap map[string]map[string][][]game.Cube) bool {
+	map_array := roomsMap[c.Player.Area][c.Player.Room]
+	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[3][1])
+	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 
 	if newpos > 0 {
 
