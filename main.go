@@ -8,9 +8,11 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gothyra/thyra/game"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -33,7 +35,6 @@ func init() {
 
 func main() {
 	// Environment variables
-	flag.Parse()
 	staticDir := os.Getenv("THYRA_STATIC")
 	if len(staticDir) == 0 {
 		pwd, _ := os.Getwd()
@@ -44,7 +45,7 @@ func main() {
 
 	// Flags
 	port := flag.Int64("port", 4000, "Port to listen on incoming connections")
-	//flag.Parse()
+	flag.Parse()
 
 	// Setup and start the server
 	server := game.NewServer(staticDir)
@@ -72,7 +73,7 @@ func main() {
 	}
 	log.Info(fmt.Sprintf("Listen on: %s", ln.Addr()))
 
-	var wg sync.WaitGroup
+	wg := &sync.WaitGroup{}
 	quit := make(chan struct{})
 	regRequest := make(chan game.LoginRequest, 1000)
 	clientRequest := make(chan game.ClientRequest, 1000)
@@ -86,12 +87,22 @@ func main() {
 	wg.Add(1)
 	go broadcast(*server, wg, quit, clientRequest, roomsMap)
 
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, os.Kill)
+	select {
+	case <-signals:
+		log.Info("Server is terminating...")
+		close(quit)
+	}
+
 	wg.Wait()
+	log.Info("Server shutdown.")
 }
 
 // handleRegistrations accepts requests for registration and replies back if the requested
 // username exists or not.
-func handleRegistrations(server game.Server, wg sync.WaitGroup, quit chan struct{}, regRequest chan game.LoginRequest) {
+func handleRegistrations(server game.Server, wg *sync.WaitGroup, quit chan struct{}, regRequest chan game.LoginRequest) {
+	log.Info("handleRegistrations started")
 	defer wg.Done()
 
 	for {
@@ -100,6 +111,7 @@ func handleRegistrations(server game.Server, wg sync.WaitGroup, quit chan struct
 
 		select {
 		case <-quit:
+			log.Info("handleRegistrations quit")
 			return
 		case request := <-regRequest:
 			exists, err = server.LoadPlayer(request.Username)
@@ -111,6 +123,7 @@ func handleRegistrations(server game.Server, wg sync.WaitGroup, quit chan struct
 			select {
 			case request.Reply <- exists:
 			case <-quit:
+				log.Info("handleRegistrations quit")
 				return
 			}
 
@@ -121,49 +134,55 @@ func handleRegistrations(server game.Server, wg sync.WaitGroup, quit chan struct
 func acceptConnections(
 	ln net.Listener,
 	server *game.Server,
-	wg sync.WaitGroup,
+	wg *sync.WaitGroup,
 	quit <-chan struct{},
 	clientCh chan<- game.ClientRequest,
 	regRequest chan game.LoginRequest,
 ) {
-
+	log.Info("acceptConnections started")
 	defer wg.Done()
 
 	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			log.Info(err.Error())
-			continue
-		}
-		wg.Add(1)
-		go handleConnection(conn, server, wg, quit, clientCh, regRequest)
-
 		select {
 		case <-quit:
+			log.Info("acceptConnections quit")
 			return
 		default:
 		}
+
+		ln.(*net.TCPListener).SetDeadline(time.Now().Add(10 * time.Second))
+		conn, err := ln.Accept()
+		if err != nil {
+			if opErr, ok := err.(*net.OpError); !ok || !opErr.Timeout() {
+				log.Info(err.Error())
+			}
+			continue
+		}
+
+		// TODO: handleConnection is not terminating gracefully right now because it blocks on waiting
+		// ReadLinesInto to quit which in turn is blocked on user input.
+		go handleConnection(conn, server, wg, quit, clientCh, regRequest)
 	}
 }
 
 // handleConnection should be invoked as a goroutine.
 func handleConnection(
-	c net.Conn,
+	conn net.Conn,
 	server *game.Server,
-	wg sync.WaitGroup,
+	wg *sync.WaitGroup,
 	quit <-chan struct{},
 	clientCh chan<- game.ClientRequest,
 	regRequest chan<- game.LoginRequest,
 ) {
-
+	log.Info("handleConnection started")
 	defer wg.Done()
 
-	bufc := bufio.NewReader(c)
-	defer c.Close()
+	bufc := bufio.NewReader(conn)
+	defer conn.Close()
 
-	log.Info(fmt.Sprintf("New connection open: %s", c.RemoteAddr()))
+	log.Info(fmt.Sprintf("New connection open: %s", conn.RemoteAddr()))
 
-	io.WriteString(c, WelcomePage)
+	io.WriteString(conn, WelcomePage)
 
 	var username string
 	questions := 0
@@ -171,15 +190,15 @@ func handleConnection(
 out:
 	for {
 		if questions >= 3 {
-			io.WriteString(c, "See you\n")
+			io.WriteString(conn, "See you\n")
 			return
 		}
 
-		username = promptMessage(c, bufc, "Whats your Nick?\n")
+		username = promptMessage(conn, bufc, "Whats your Nick?\n")
 		isValidName := game.IsValidUsername(username)
 		if !isValidName {
 			questions++
-			io.WriteString(c, fmt.Sprintf("Username %s is not valid (0-9a-z_-).\n", username))
+			io.WriteString(conn, fmt.Sprintf("Username %s is not valid (0-9a-z_-).\n", username))
 			continue
 		}
 
@@ -187,13 +206,15 @@ out:
 		replyCh := make(chan bool, 1)
 
 		select {
-		case regRequest <- game.LoginRequest{Username: username, Conn: c, Reply: replyCh}:
+		case regRequest <- game.LoginRequest{Username: username, Conn: conn, Reply: replyCh}:
 		case <-quit:
+			return
 		}
 
 		select {
 		case exists = <-replyCh:
 		case <-quit:
+			return
 		}
 
 		if exists {
@@ -201,8 +222,8 @@ out:
 		}
 
 		questions++
-		io.WriteString(c, fmt.Sprintf("Username %s does not exists.\n", username))
-		answer := promptMessage(c, bufc, "Do you want to create that user? [y|n] ")
+		io.WriteString(conn, fmt.Sprintf("Username %s does not exists.\n", username))
+		answer := promptMessage(conn, bufc, "Do you want to create that user? [y|n] ")
 
 		if answer == "y" || answer == "yes" {
 			server.CreatePlayer(username)
@@ -211,17 +232,17 @@ out:
 	}
 
 	player, _ := server.GetPlayerByNick(username)
+	c := game.NewClient(conn, &player, clientCh)
+	log.Info(fmt.Sprintf("Player %q got connected", c.Player.Nickname))
+	server.ClientLoggedIn(c.Player.Nickname, *c)
 
-	reply := make(chan game.Reply, 1)
+	wg.Add(1)
+	go game.Panel(c, wg, quit)
 
-	client := game.NewClient(c, &player, clientCh, reply)
-
-	go game.Panel(client)
-
-	log.Info(fmt.Sprintf("Player %q got connected", client.Player.Nickname))
-	server.ClientLoggedIn(client.Player.Nickname, *client)
-	client.ReadLinesInto(quit)
-	log.Info(fmt.Sprintf("Connection from %v closed.", c.RemoteAddr()))
+	// TODO: Main client thread is not terminating gracefully right now because it blocks on waiting
+	// for the user to hit Enter before proceeding to check for quit.
+	c.ReadLinesInto(quit)
+	log.Info(fmt.Sprintf("Connection from %v closed.", conn.RemoteAddr()))
 }
 
 func promptMessage(c net.Conn, bufc *bufio.Reader, message string) string {
@@ -237,73 +258,93 @@ func promptMessage(c net.Conn, bufc *bufio.Reader, message string) string {
 // TODO: Maybe parallelize this so that each client request is handled on a separate routine.
 func broadcast(
 	server game.Server,
-	wg sync.WaitGroup,
+	wg *sync.WaitGroup,
 	quit <-chan struct{},
 	reqChan <-chan game.ClientRequest,
 	roomsMap map[string]map[string][][]game.Cube,
 ) {
-
+	log.Info("broadcast started")
 	defer wg.Done()
 
-	go god(&server, roomsMap)
+	wg.Add(1)
+	go god(&server, wg, quit, roomsMap)
 
 	for {
 		select {
 		case request := <-reqChan:
 			server.HandleCommand(*request.Client, request.Cmd, roomsMap)
 		case <-quit:
+			log.Info("broadcast quit")
 			return
 		}
 	}
 }
 
-func god(s *game.Server, map_array map[string]map[string][][]game.Cube) {
+func god(
+	s *game.Server,
+	wg *sync.WaitGroup,
+	quit <-chan struct{},
+	map_array map[string]map[string][][]game.Cube,
+) {
+	log.Info("god started")
+	defer wg.Done()
 
 	for {
 		select {
+		case <-quit:
+			log.Info("god quit")
+			return
+
 		case ev := <-s.Events:
 			c := ev.Client
-			switch ev.Etype {
 
+			switch ev.Etype {
 			case "look":
-				godPrint(s, c, map_array, "")
+				wg.Add(1)
+				godPrint(s, c, wg, quit, map_array, "")
+
 			case "move_east":
 				msg := ""
 				if !do_move(s, *c, map_array, 0) {
 					msg = "You can't go that way"
 				}
-				godPrint(s, c, map_array, msg)
+				wg.Add(1)
+				godPrint(s, c, wg, quit, map_array, msg)
 
 			case "move_west":
 				msg := ""
 				if !do_move(s, *c, map_array, 1) {
 					msg = "You can't go that way"
 				}
-				godPrint(s, c, map_array, msg)
+				wg.Add(1)
+				godPrint(s, c, wg, quit, map_array, msg)
+
 			case "move_north":
 				msg := ""
 				if !do_move(s, *c, map_array, 2) {
 					msg = "You can't go that way"
 				}
-				godPrint(s, c, map_array, msg)
+				wg.Add(1)
+				godPrint(s, c, wg, quit, map_array, msg)
+
 			case "move_south":
 				msg := ""
 				if !do_move(s, *c, map_array, 3) {
 					msg = "You can't go that way"
 				}
-				godPrint(s, c, map_array, msg)
+				wg.Add(1)
+				godPrint(s, c, wg, quit, map_array, msg)
 
 			case "quit":
 				s.OnExit(*c)
 				c.Conn.Close()
 			}
-
 		}
 	}
-
 }
 
-func godPrint(s *game.Server, client *game.Client, roomsMap map[string]map[string][][]game.Cube, msg string) {
+func godPrint(s *game.Server, client *game.Client, wg *sync.WaitGroup, quit <-chan struct{}, roomsMap map[string]map[string][][]game.Cube, msg string) {
+	defer wg.Done()
 
 	room := client.Player.Room
 	preroom := client.Player.PreviousRoom
@@ -325,14 +366,12 @@ func godPrint(s *game.Server, client *game.Client, roomsMap map[string]map[strin
 	}
 	p := client.Player
 
-	log.Info("Online players in the same room:")
+	log.Info(fmt.Sprintf("Online players in the same room: %s", game.Clients(onlineSameRoom)))
 	for i := range onlineSameRoom {
-
 		c := onlineSameRoom[i]
 
-		log.Info(fmt.Sprintf("%s", c.Player.Nickname))
 		buffintro := game.PrintIntro(s, p.Area, p.Room)
-		bufmap := game.UpdateMap(s, p, map_array)
+		bufmap := game.PrintMap(s, p, map_array)
 		bufexits := game.PrintExits(game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position))
 
 		reply := game.Reply{
@@ -345,7 +384,11 @@ func godPrint(s *game.Server, client *game.Client, roomsMap map[string]map[strin
 			reply.Events = msg
 		}
 
-		c.Reply <- reply
+		select {
+		case c.Reply <- reply:
+		case <-quit:
+			return
+		}
 	}
 
 	for i := range previousSameRoom {
@@ -353,7 +396,7 @@ func godPrint(s *game.Server, client *game.Client, roomsMap map[string]map[strin
 
 		buffexits := game.PrintExits(game.FindExits(map_array_pre, c.Player.Area, c.Player.Room, c.Player.Position))
 
-		bufmap := game.UpdateMap(s, c.Player, map_array_pre)
+		bufmap := game.PrintMap(s, c.Player, map_array_pre)
 		buffintro := game.PrintIntro(s, c.Player.Area, c.Player.Room)
 
 		reply := game.Reply{
@@ -366,13 +409,15 @@ func godPrint(s *game.Server, client *game.Client, roomsMap map[string]map[strin
 			reply.Events = msg
 		}
 
-		c.Reply <- reply
+		select {
+		case c.Reply <- reply:
+		case <-quit:
+			return
+		}
 	}
-
 }
 
 func do_move(s *game.Server, c game.Client, roomsMap map[string]map[string][][]game.Cube, direction int) bool {
-
 	c.Player.PreviousArea = c.Player.Area
 	c.Player.PreviousRoom = c.Player.Room
 
@@ -381,15 +426,12 @@ func do_move(s *game.Server, c game.Client, roomsMap map[string]map[string][][]g
 	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
 
 	if newpos > 0 {
-
 		c.Player.Position = strconv.Itoa(newpos)
 		delete(s.Players, c.Player.Nickname)
 		c.Player.Area = posarray[direction][0]
 		c.Player.Room = posarray[direction][2]
 		s.Players[c.Player.Nickname] = *c.Player
 		return true
-	} else {
-		return false
 	}
-
+	return false
 }

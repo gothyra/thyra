@@ -11,16 +11,6 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-type Client struct {
-	Conn    net.Conn
-	Player  *Player
-	Cmd     chan<- ClientRequest
-	Buff    bytes.Buffer
-	Reply   chan Reply
-	Bbuffer *Cellbuf
-	Fbuffer *Cellbuf
-}
-
 type Clients []Client
 
 func (cl Clients) String() string {
@@ -31,18 +21,25 @@ func (cl Clients) String() string {
 	return fmt.Sprintf("%#v", clients)
 }
 
-func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest, reply chan Reply) *Client {
-	client := &Client{
+type Client struct {
+	Conn    net.Conn
+	Player  *Player
+	Cmd     chan<- ClientRequest
+	Buff    bytes.Buffer
+	Reply   chan Reply
+	Bbuffer *Cellbuf
+	Fbuffer *Cellbuf
+}
+
+func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest) *Client {
+	return &Client{
 		Conn:    c,
 		Player:  player,
 		Cmd:     cmd,
-		Reply:   reply,
+		Reply:   make(chan Reply, 1),
 		Bbuffer: new(Cellbuf),
 		Fbuffer: new(Cellbuf),
 	}
-
-	return client
-
 }
 
 func (c Client) WriteToUser(msg string) {
@@ -50,18 +47,18 @@ func (c Client) WriteToUser(msg string) {
 }
 
 func (c Client) WriteLineToUser(msg string) {
-	io.WriteString(c.Conn, msg+"\n\r")
+	io.WriteString(c.Conn, msg+"\n")
 }
 
 func (c Client) do_tell(client []Client, msg string, name string) {
 	for i := range client {
-		io.WriteString(client[i].Conn, "\n"+name+": "+msg+"\n\r")
+		io.WriteString(client[i].Conn, "\n"+name+": "+msg+"\n")
 	}
 }
 
-func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
-
+func (c Client) ReadLinesInto(quit <-chan struct{}) {
 	bufc := bufio.NewReader(c.Conn)
+
 	for {
 		line, err := bufc.ReadString('\n')
 		if err != nil {
@@ -70,13 +67,20 @@ func (c Client) ReadLinesInto(stopCh <-chan struct{}) {
 		}
 		line = strings.TrimSpace(line)
 		if len(line) == 0 {
+			select {
+			case <-quit:
+				log.Info(fmt.Sprintf("Player %q quit", c.Player.Nickname))
+				return
+			default:
+			}
 			continue
 		}
+
 		select {
 		case c.Cmd <- ClientRequest{Client: &c, Cmd: line}:
-		case <-stopCh:
+		case <-quit:
+			log.Info(fmt.Sprintf("Player %q quit", c.Player.Nickname))
 			return
 		}
-
 	}
 }

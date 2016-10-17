@@ -3,19 +3,17 @@ package game
 import (
 	"bytes"
 	"fmt"
+	"sync"
 
 	"github.com/mattn/go-runewidth"
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func tbprint(x, y int, fg, bg Attribute, msg string, client *Client) {
-
 	for _, c := range msg {
 		SetCell(x, y, c, fg, bg, client)
 		x += runewidth.RuneWidth(c)
-
 	}
-
 }
 
 func fill(x, y, w, h int, cell Cell, c *Client) {
@@ -42,8 +40,8 @@ var edit_box EditBox
 
 const edit_box_width = 120
 
-func redraw(c *Client) {
-	log.Info(fmt.Sprintf("Redraw: %s ,W:%d H:%d ", c.Player.Nickname, c.Bbuffer.Width, c.Bbuffer.Height))
+func redraw(c *Client, reply Reply) {
+	log.Info(fmt.Sprintf("Redraw: %s, W: %d H: %d ", c.Player.Nickname, c.Bbuffer.Width, c.Bbuffer.Height))
 	const coldef = ColorDefault
 
 	w, h := Size()
@@ -51,10 +49,9 @@ func redraw(c *Client) {
 	midy := h/2 + 12
 	midx := (w - edit_box_width) - 10
 
-	log.Info("Redraw : Before Reply")
-	reply := <-c.Reply
+	// TODO: Why?
 	Clear(coldef, coldef, c)
-	log.Info("Redraw : After Reply")
+
 	buf := bytes.NewBuffer(reply.World)
 	rintro := bytes.NewBuffer(reply.Intro)
 
@@ -99,7 +96,9 @@ func redraw(c *Client) {
 	Flush(c)
 }
 
-func Panel(c *Client) {
+func Panel(c *Client, wg *sync.WaitGroup, quit <-chan struct{}) {
+	defer wg.Done()
+
 	err := Init(c)
 	if err != nil {
 		panic(err)
@@ -107,7 +106,12 @@ func Panel(c *Client) {
 	defer Close(*c)
 
 	for {
-		redraw(c)
-
+		select {
+		case reply := <-c.Reply:
+			redraw(c, reply)
+		case <-quit:
+			log.Info(fmt.Sprintf("Panel for %q quit", c.Player.Nickname))
+			return
+		}
 	}
 }

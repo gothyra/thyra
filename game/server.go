@@ -151,7 +151,7 @@ func (s *Server) CreatePlayer(nick string) {
 	if _, err := os.Stat(playerFileName); err == nil {
 		log.Info(fmt.Sprintf("Player %q does already exist.\n", nick))
 		if _, err := s.LoadPlayer(nick); err != nil {
-			log.Info(fmt.Sprintf("Player %s cannot be loaded: %v", nick, err))
+			log.Info(fmt.Sprintf("Player %q cannot be loaded: %v", nick, err))
 		}
 		return
 	}
