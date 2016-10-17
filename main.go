@@ -44,7 +44,7 @@ func main() {
 
 	// Flags
 	port := flag.Int64("port", 4000, "Port to listen on incoming connections")
-	//flag.Parse()
+	flag.Parse()
 
 	// Setup and start the server
 	server := game.NewServer(staticDir)

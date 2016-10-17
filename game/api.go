@@ -3,8 +3,6 @@ package game
 import (
 	"fmt"
 	"io"
-	"os"
-	"syscall"
 
 	runewidth "github.com/mattn/go-runewidth"
 
@@ -12,25 +10,11 @@ import (
 )
 
 func Init(c *Client) error {
-	var err error
 
-	out, err = os.OpenFile("/dev/tty", syscall.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
+	io.WriteString(c.Conn, "\033[2J")
 
-	err = setup_term()
-	if err != nil {
-		return fmt.Errorf("termbox: error while reading terminfo data: %v", err)
-	}
-
-	io.WriteString(c.Conn, funcs[t_enter_ca])
-	io.WriteString(c.Conn, funcs[t_enter_keypad])
-	io.WriteString(c.Conn, funcs[t_hide_cursor])
-	io.WriteString(c.Conn, funcs[t_clear_screen])
-
-	termw, termh = get_term_size(out.Fd())
+	//TODO : get terminal size from client
+	termw, termh = 132, 32
 
 	log.Info(fmt.Sprintf("TermW:%d , TermH:%d ", termw, termh))
 
@@ -47,39 +31,21 @@ func Init(c *Client) error {
 	return nil
 }
 
-// Interrupt an in-progress call to PollEvent by causing it to return
-// EventInterrupt.  Note that this function will block until the PollEvent
-// function has successfully been interrupted.
-func Interrupt() {
-	interrupt_comm <- struct{}{}
-}
-
-// Finalizes termbox library, should be called after successful initialization
-// when termbox's functionality isn't required anymore.
 func Close(c Client) {
-
-	io.WriteString(c.Conn, funcs[t_show_cursor])
-	io.WriteString(c.Conn, funcs[t_sgr0])
-	io.WriteString(c.Conn, funcs[t_clear_screen])
-	io.WriteString(c.Conn, funcs[t_exit_ca])
-	io.WriteString(c.Conn, funcs[t_exit_keypad])
-	io.WriteString(c.Conn, funcs[t_exit_mouse])
+	io.WriteString(c.Conn, "\033[2J")
 
 	// reset the state, so that on next Init() it will work again
 	termw = 0
 	termh = 0
 	//input_mode = InputEsc
-	out = nil
-	in = 0
-	lastfg = attr_invalid
-	lastbg = attr_invalid
+
 	lastx = coord_invalid
 	lasty = coord_invalid
 	cursor_x = cursor_hidden
 	cursor_y = cursor_hidden
-	//foreground = ColorDefault
-	//background = ColorDefault
-	//IsInit = false
+	foreground = ColorDefault
+	background = ColorDefault
+
 }
 
 // Synchronizes the internal back buffer with the terminal.
@@ -115,7 +81,6 @@ func Flush(c *Client) error {
 				continue
 			}
 			front = back
-			//send_attr(back.Fg, back.Bg, c)
 
 			if w == 2 && x == width-1 {
 
@@ -149,13 +114,6 @@ func Flush(c *Client) error {
 
 // Sets the position of the cursor. See also HideCursor().
 func SetCursor(x, y int, c Client) {
-	if is_cursor_hidden(cursor_x, cursor_y) && !is_cursor_hidden(x, y) {
-		//io.WriteString(c.Conn, funcs[t_show_cursor])
-	}
-
-	if !is_cursor_hidden(cursor_x, cursor_y) && is_cursor_hidden(x, y) {
-		//io.WriteString(c.Conn, funcs[t_hide_cursor])
-	}
 
 	cursor_x, cursor_y = x, y
 	if !is_cursor_hidden(cursor_x, cursor_y) {
@@ -183,10 +141,6 @@ func SetCell(x, y int, ch rune, fg, bg Attribute, c *Client) {
 
 }
 
-// Returns the size of the internal back buffer (which is mostly the same as
-// terminal's window size in characters). But it doesn't always match the size
-// of the terminal window, after the terminal size has changed, the internal
-// back buffer will get in sync only after Clear or Flush function calls.
 func Size() (width int, height int) {
 	return termw, termh
 }
