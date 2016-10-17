@@ -57,11 +57,6 @@ func send_char(x, y int, ch rune, c Client) {
 
 }
 
-func flush(c *Client) error {
-	c.Buff.Reset()
-	return nil
-}
-
 func send_clear(c *Client) error {
 
 	io.WriteString(c.Conn, "\033[2J")
@@ -78,11 +73,11 @@ func send_clear(c *Client) error {
 	lastx = coord_invalid
 	lasty = coord_invalid
 
-	return flush(c)
+	c.Buff.Reset()
+	return nil
 }
 
 func update_size_maybe(c *Client) error {
-
 	//TODO : get terminal size from client
 	termw, termh = 132, 32
 

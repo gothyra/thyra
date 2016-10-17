@@ -6,7 +6,6 @@ import (
 )
 
 func FindExits(s [][]Cube, area, room, pos string) [][]string {
-
 	exitarr := [][]string{}
 	east := []string{area, "0", room}
 	west := []string{area, "0", room}
@@ -103,7 +102,6 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 }
 
 func PrintExits(exit_array [][]string) bytes.Buffer { //Print exits,From returned [5]string findExits
-
 	var buffer bytes.Buffer
 
 	buffer.WriteString("Exits  : [ ")
@@ -123,11 +121,9 @@ func PrintExits(exit_array [][]string) bytes.Buffer { //Print exits,From returne
 	}
 	buffer.WriteString("]\n")
 	return buffer
-
 }
 
-func UpdateMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
-
+func PrintMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
 	var buffer bytes.Buffer
 
 	hasPlayer := map[string]string{}
@@ -167,8 +163,8 @@ func UpdateMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
 	return buffer
 }
 
-func PrintIntro(s *Server, areaID, room string) bytes.Buffer { // Print to intro tis area
-
+// Print to intro tis area
+func PrintIntro(s *Server, areaID, room string) bytes.Buffer {
 	var buffer bytes.Buffer
 
 	areaIntro := s.Areas[areaID].Rooms[room].Description
