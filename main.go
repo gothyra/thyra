@@ -216,7 +216,7 @@ out:
 
 	client := game.NewClient(c, &player, clientCh, reply)
 
-	go game.Go_editbox(client)
+	go game.Panel(client)
 
 	log.Info(fmt.Sprintf("Player %q got connected", client.Player.Nickname))
 	server.ClientLoggedIn(client.Player.Nickname, *client)
@@ -263,7 +263,6 @@ func god(s *game.Server, map_array map[string]map[string][][]game.Cube) {
 		select {
 		case ev := <-s.Events:
 			c := ev.Client
-
 			switch ev.Etype {
 
 			case "look":
