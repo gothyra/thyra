@@ -54,7 +54,6 @@ func (this *Cellbuf) resize(Width, Height int) {
 }
 
 func (this *Cellbuf) clear() {
-
 	log.Info(fmt.Sprintf("clear():Size Cells:", len(this.Cells)))
 	for i := range this.Cells {
 		c := &this.Cells[i]
