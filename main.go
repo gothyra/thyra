@@ -76,7 +76,7 @@ func main() {
 	wg := &sync.WaitGroup{}
 	quit := make(chan struct{})
 	regRequest := make(chan game.LoginRequest, 1000)
-	clientRequest := make(chan game.ClientRequest, 1000)
+	clientRequest := make(chan game.Request, 1000)
 
 	wg.Add(1)
 	go handleRegistrations(*server, wg, quit, regRequest)
@@ -136,7 +136,7 @@ func acceptConnections(
 	server *game.Server,
 	wg *sync.WaitGroup,
 	quit <-chan struct{},
-	clientCh chan<- game.ClientRequest,
+	clientCh chan<- game.Request,
 	regRequest chan game.LoginRequest,
 ) {
 	log.Info("acceptConnections started")
@@ -171,7 +171,7 @@ func handleConnection(
 	server *game.Server,
 	wg *sync.WaitGroup,
 	quit <-chan struct{},
-	clientCh chan<- game.ClientRequest,
+	clientCh chan<- game.Request,
 	regRequest chan<- game.LoginRequest,
 ) {
 	log.Info("handleConnection started")
@@ -260,7 +260,7 @@ func broadcast(
 	server game.Server,
 	wg *sync.WaitGroup,
 	quit <-chan struct{},
-	reqChan <-chan game.ClientRequest,
+	reqChan <-chan game.Request,
 	roomsMap map[string]map[string][][]game.Cube,
 ) {
 	log.Info("broadcast started")
