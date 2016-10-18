@@ -41,14 +41,13 @@ var (
 	cursor_y   = cursor_hidden
 	foreground = ColorDefault
 	background = ColorDefault
-	intbuf     = make([]byte, 0, 16)
 )
 
 func write_cursor(x, y int, c Client) {
 	c.Buff.WriteString("\033[")
-	c.Buff.Write(strconv.AppendUint(intbuf, uint64(y+1), 10))
+	c.Buff.Write(strconv.AppendUint(c.intbuf, uint64(y+1), 10))
 	c.Buff.WriteString(";")
-	c.Buff.Write(strconv.AppendUint(intbuf, uint64(x+1), 10))
+	c.Buff.Write(strconv.AppendUint(c.intbuf, uint64(x+1), 10))
 	c.Buff.WriteString("H")
 
 	io.WriteString(c.Conn, c.Buff.String())

@@ -14,7 +14,7 @@ type Event struct {
 	Etype  string
 }
 
-type ClientRequest struct {
+type Request struct {
 	Client *Client
 	Cmd    string
 }

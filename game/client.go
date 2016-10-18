@@ -22,23 +22,32 @@ func (cl Clients) String() string {
 }
 
 type Client struct {
-	Conn    net.Conn
-	Player  *Player
-	Cmd     chan<- ClientRequest
+	// Conn is the connection used by the user to play.
+	Conn net.Conn
+	// Player holds all the necessary information for the character of the user.
+	Player *Player
+	// Request is used by the user to send command at the server.
+	Request chan<- Request
+	// Reply is used by the server to respond to user commands. The Reply channel is
+	// operated by the Panel thread which runs in parallel with the main client thread
+	// and is responsible for updating the output users see.
+	Reply chan Reply
+
 	Buff    bytes.Buffer
-	Reply   chan Reply
 	Bbuffer *Cellbuf
 	Fbuffer *Cellbuf
+	intbuf  []byte
 }
 
-func NewClient(c net.Conn, player *Player, cmd chan<- ClientRequest) *Client {
+func NewClient(c net.Conn, player *Player, req chan<- Request) *Client {
 	return &Client{
 		Conn:    c,
 		Player:  player,
-		Cmd:     cmd,
+		Request: req,
 		Reply:   make(chan Reply, 1),
 		Bbuffer: new(Cellbuf),
 		Fbuffer: new(Cellbuf),
+		intbuf:  make([]byte, 0, 16),
 	}
 }
 
@@ -67,17 +76,11 @@ func (c Client) ReadLinesInto(quit <-chan struct{}) {
 		}
 		line = strings.TrimSpace(line)
 		if len(line) == 0 {
-			select {
-			case <-quit:
-				log.Info(fmt.Sprintf("Player %q quit", c.Player.Nickname))
-				return
-			default:
-			}
 			continue
 		}
 
 		select {
-		case c.Cmd <- ClientRequest{Client: &c, Cmd: line}:
+		case c.Request <- Request{Client: &c, Cmd: line}:
 		case <-quit:
 			log.Info(fmt.Sprintf("Player %q quit", c.Player.Nickname))
 			return
