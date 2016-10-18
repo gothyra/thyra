@@ -15,7 +15,8 @@ func Init(c *Client) error {
 
 	err = setup_term()
 	if err != nil {
-		return fmt.Errorf("termbox: error while reading terminfo data: %v", err)
+		log.Info(fmt.Sprintf("error while reading terminfo data: %v", err))
+		return err
 	}
 
 	io.WriteString(c.Conn, funcs[t_enter_ca])

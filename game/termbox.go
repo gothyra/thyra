@@ -102,21 +102,8 @@ func update_size_maybe(c *Client) error {
 }
 
 func setup_term() (err error) {
-	//var data []byte
-	var header [6]int16
-	//var str_offset, table_offset int16
-
-	if (header[1]+header[2])%2 != 0 {
-		// old quirk to align everything on word boundaries
-		header[2] += 1
-	}
-	//str_offset = ti_header_length + header[1] + header[2] + 2*header[3]
-	//	table_offset = str_offset + 2*header[4]
 
 	funcs = make([]string, t_max_funcs)
-	// the last two entries are reserved for mouse. because the table offset is
-	// not there, the two entries have to fill in manually
-
 	funcs[t_max_funcs-2] = ti_mouse_enter
 	funcs[t_max_funcs-1] = ti_mouse_leave
 	return nil
