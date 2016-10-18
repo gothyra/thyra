@@ -10,7 +10,16 @@ import (
 )
 
 func Init(c *Client) error {
-	io.WriteString(c.Conn, "\033[2J")
+
+	var err error
+
+	err = setup_term()
+	if err != nil {
+		return fmt.Errorf("termbox: error while reading terminfo data: %v", err)
+	}
+
+	io.WriteString(c.Conn, funcs[t_enter_ca])
+	io.WriteString(c.Conn, funcs[t_clear_screen])
 
 	//TODO : get terminal size from Client
 	termw, termh = 132, 32
