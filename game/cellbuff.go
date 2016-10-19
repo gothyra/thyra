@@ -6,8 +6,6 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-// private API, common OS agnostic part
-
 type Cellbuf struct {
 	Width  int
 	Height int
@@ -15,7 +13,7 @@ type Cellbuf struct {
 }
 
 func New(Width, Height int) *Cellbuf {
-	log.Info(fmt.Sprintf("Enter Cellbuf init - W: %d H: %d :", Width, Height))
+	log.Debug(fmt.Sprintf("Enter Cellbuf init - W: %d H: %d :", Width, Height))
 	return &Cellbuf{
 		Width:  Width,
 		Height: Height,
@@ -53,7 +51,7 @@ func (this *Cellbuf) resize(Width, Height int) {
 }
 
 func (this *Cellbuf) clear() {
-	log.Info(fmt.Sprintf("clear():Size Cells: %d", len(this.Cells)))
+	log.Debug(fmt.Sprintf("clear():Size Cells: %d", len(this.Cells)))
 	for i := range this.Cells {
 		c := &this.Cells[i]
 		c.Ch = ' '

@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/gothyra/toml"
@@ -189,8 +188,6 @@ func (s *Server) SavePlayer(player Player) bool {
 func (s *Server) OnExit(client Client) {
 	s.SavePlayer(*client.Player)
 	s.ClientLoggedOut(client.Player.Nickname)
-
-	client.WriteLineToUser(fmt.Sprintf("\nGood bye %s", client.Player.Nickname))
 }
 
 func (s *Server) ClientLoggedIn(name string, client Client) {
@@ -287,20 +284,8 @@ func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
 }
 
 // TODO: Remove from Server
-func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map[string][][]Cube) {
-
-	//map_array := roomsMap[c.Player.Area][c.Player.Room]
-
-	lineParts := strings.SplitN(command, " ", 2)
-
-	//	var args string
-	if len(lineParts) > 0 {
-		command = lineParts[0]
-	}
-	if len(lineParts) > 1 {
-		//args = lineParts[1]
-	}
-	//c.Player.PreviousRoom = c.Player.Room
+func (s *Server) HandleCommand(c Client, command string) {
+	//TODO split command to get arguments
 
 	event := Event{
 		Client: &c,
@@ -320,102 +305,8 @@ func (s *Server) HandleCommand(c Client, command string, roomsMap map[string]map
 		event.Etype = "move_south"
 	case "quit", "exit":
 		event.Etype = "quit"
-
-	/*case "list":
-	for i := range map_array {
-		for y := range map_array {
-
-			if map_array[y][i].ID != "" {
-				id, _ := strconv.Atoi(map_array[y][i].ID)
-				if id < 10 {
-					c.WriteToUser("|  " + map_array[y][i].ID + " |")
-
-				} else {
-					c.WriteToUser("| " + map_array[y][i].ID + " |")
-
-				}
-
-			} else {
-				c.WriteToUser("| XX |")
-
-			}
-
-		}
-		c.WriteToUser("\n")
-
-	}*/
-
 	default:
-
-		//msg := "Huh?"
-		//PrintToUser(s, c.Reply, c.Player, map_array, msg, map_array)
+		event.Etype = "unknown"
 	}
 	s.Events <- event
 }
-
-/*
-func printToUser(s *Server, replyChan chan Reply, p *Player, map_array [][]Cube, event string, map_array_pre [][]Cube) {
-	room := p.Room
-	preroom := p.PreviousRoom
-
-	var onlineSameRoom []Client
-	var previousSameRoom []Client
-	online := s.OnlineClients()
-	for i := range online {
-		c := online[i]
-
-		if c.Player.Room == room {
-			onlineSameRoom = append(onlineSameRoom, c)
-		} else if c.Player.Room == preroom {
-			previousSameRoom = append(previousSameRoom, c)
-		}
-	}
-
-	buffintro := printIntro(s, p.Area, p.Room)
-	bufmap := updateMap(s, p, map_array)
-
-	log.Info("Online players in the same room:")
-	for i := range onlineSameRoom {
-
-		c := onlineSameRoom[i]
-
-		log.Info(fmt.Sprintf("%s", c.Player.Nickname))
-
-		bufexits := printExits(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position))
-
-		reply := Reply{
-			world: bufmap.Bytes(),
-			intro: buffintro.Bytes(),
-			exits: bufexits.String(),
-		}
-
-		if c.Player.Nickname == p.Nickname {
-			reply.events = event
-		}
-
-		//log.Info(fmt.Sprintf("%s:\n %s", c.Player.Nickname, reply.intro))
-		c.Reply <- reply
-	}
-
-	for i := range previousSameRoom {
-		c := previousSameRoom[i]
-
-		buffexits := printExits(FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position))
-
-		bufmap := updateMap(s, c.Player, map_array_pre)
-		buffintro := printIntro(s, c.Player.Area, c.Player.Room)
-
-		reply := Reply{
-			world: bufmap.Bytes(),
-			intro: buffintro.Bytes(),
-			exits: buffexits.String(),
-		}
-
-		if c.Player.Nickname == p.Nickname {
-			reply.events = event
-		}
-
-		c.Reply <- reply
-	}
-}
-*/
