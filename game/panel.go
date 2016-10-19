@@ -41,7 +41,7 @@ var edit_box EditBox
 const edit_box_width = 120
 
 func redraw(c *Client, reply Reply) {
-	log.Info(fmt.Sprintf("Redraw: %s, W: %d H: %d ", c.Player.Nickname, c.Bbuffer.Width, c.Bbuffer.Height))
+	log.Debug(fmt.Sprintf("Redraw: %s, W: %d H: %d ", c.Player.Nickname, c.Bbuffer.Width, c.Bbuffer.Height))
 	const coldef = ColorDefault
 
 	w, h := Size()
@@ -54,8 +54,6 @@ func redraw(c *Client, reply Reply) {
 
 	buf := bytes.NewBuffer(reply.World)
 	rintro := bytes.NewBuffer(reply.Intro)
-
-	//log.Info(fmt.Sprintf("%s\n%s\n%s\n%s\n", c.Player.Nickname, buf, rintro, reply.exits))
 
 	// Editbox
 	SetCell(midx-1, midy, '│', coldef, coldef, c)
@@ -84,7 +82,7 @@ func redraw(c *Client, reply Reply) {
 	for {
 		line, err := rintro.ReadString('\n')
 		if err != nil {
-			//log.Info("intro buffer read error: %v", err)
+			//log.Error("intro buffer read error: %v", err)
 			break
 		}
 		tbprint(midx, midy-counter2, coldef, coldef, line, c)
