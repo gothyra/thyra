@@ -226,17 +226,17 @@ func fight(c Client, comb1, comb2 *PC) {
 
 			switch descrip {
 			case 1:
-				c.WriteLineToUser("Player 2 was hit for " + strhit + " points of damage")
+				fmt.Println("Player 2 was hit for " + strhit + " points of damage")
 			case 2:
-				c.WriteLineToUser("Player 2 was too slow, punished for " + strhit + " points of damage")
+				fmt.Println("Player 2 was too slow, punished for " + strhit + " points of damage")
 			case 3:
-				c.WriteLineToUser("The evasion was worthless for Player 2, he suffered " + strhit + " points of damage")
+				fmt.Println("The evasion was worthless for Player 2, he suffered " + strhit + " points of damage")
 			case 4:
-				c.WriteLineToUser("If he brought a shield, Player 2 would avoid " + strhit + " points of damage")
+				fmt.Println("If he brought a shield, Player 2 would avoid " + strhit + " points of damage")
 			}
 
 		} else {
-			c.WriteLineToUser("Player 1 missed")
+			fmt.Println("Player 1 missed")
 		}
 		if comb2.HP < 0 {
 			break
@@ -250,16 +250,16 @@ func fight(c Client, comb1, comb2 *PC) {
 
 			switch descrip {
 			case 1:
-				c.WriteLineToUser("Player 1 was hit for " + strhit + " points of damage")
+				fmt.Println("Player 1 was hit for " + strhit + " points of damage")
 			case 2:
-				c.WriteLineToUser("Bad news Player 1, you were hit for " + strhit + " points of damage")
+				fmt.Println("Bad news Player 1, you were hit for " + strhit + " points of damage")
 			case 3:
-				c.WriteLineToUser("Player 1 surelly didn't expect to suffer " + strhit + " points of damage")
+				fmt.Println("Player 1 surelly didn't expect to suffer " + strhit + " points of damage")
 			case 4:
-				c.WriteLineToUser("Learn some parry next time Player 1, because you took " + strhit + " points of damage")
+				fmt.Println("Learn some parry next time Player 1, because you took " + strhit + " points of damage")
 			}
 		} else {
-			c.WriteLineToUser("Player 2 missed")
+			fmt.Println("Player 2 missed")
 		}
 	}
 	fmt.Println("--@@--@@--@@--@@--")
@@ -267,9 +267,9 @@ func fight(c Client, comb1, comb2 *PC) {
 	strhp1 := strconv.Itoa(comb1.HP)
 	strhp2 := strconv.Itoa(comb2.HP)
 	if comb1.HP > 0 {
-		c.WriteLineToUser("Player 1 won, he's at " + strhp1 + " Hit Points, leaving his opponent at " + strhp2)
+		fmt.Println("Player 1 won, he's at " + strhp1 + " Hit Points, leaving his opponent at " + strhp2)
 	} else {
-		c.WriteLineToUser("Player 2 won, he's at " + strhp2 + "Hit Points, leaving his opponent at " + strhp1)
+		fmt.Println("Player 2 won, he's at " + strhp2 + "Hit Points, leaving his opponent at " + strhp1)
 	}
 }
 

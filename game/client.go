@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"net"
 	"strings"
 
@@ -51,27 +50,13 @@ func NewClient(c net.Conn, player *Player, req chan<- Request) *Client {
 	}
 }
 
-func (c Client) WriteToUser(msg string) {
-	io.WriteString(c.Conn, msg)
-}
-
-func (c Client) WriteLineToUser(msg string) {
-	io.WriteString(c.Conn, msg+"\n")
-}
-
-func (c Client) do_tell(client []Client, msg string, name string) {
-	for i := range client {
-		io.WriteString(client[i].Conn, "\n"+name+": "+msg+"\n")
-	}
-}
-
 func (c Client) ReadLinesInto(quit <-chan struct{}) {
 	bufc := bufio.NewReader(c.Conn)
 
 	for {
 		line, err := bufc.ReadString('\n')
 		if err != nil {
-			log.Info(fmt.Sprintf("%#v", err))
+			log.Error(fmt.Sprintf("%#v", err))
 			return
 		}
 		line = strings.TrimSpace(line)

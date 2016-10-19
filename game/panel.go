@@ -110,7 +110,7 @@ func Panel(c *Client, wg *sync.WaitGroup, quit <-chan struct{}) {
 		case reply := <-c.Reply:
 			redraw(c, reply)
 		case <-quit:
-			log.Info(fmt.Sprintf("Panel for %q quit", c.Player.Nickname))
+			log.Warn(fmt.Sprintf("Panel for %q quit", c.Player.Nickname))
 			return
 		}
 	}
