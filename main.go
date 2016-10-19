@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 
@@ -21,9 +20,22 @@ import (
 
 func customFormat() log.Format {
 	return log.FormatFunc(func(r *log.Record) []byte {
+		var color = 0
+		switch r.Lvl {
+		case log.LvlCrit:
+			color = 35
+		case log.LvlError:
+			color = 31
+		case log.LvlWarn:
+			color = 33
+		case log.LvlInfo:
+			color = 32
+		case log.LvlDebug:
+			color = 36
+		}
 		b := &bytes.Buffer{}
 		call := stack.Call(r.CallPC[0])
-		fmt.Fprintf(b, "[%s %s:%d] %s\n", r.Time.Format("2006-01-02|15:04:05.000"), call, call, r.Msg)
+		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m [%s %s:%d] %s\n", color, r.Lvl, r.Time.Format("2006-01-02|15:04:05.000"), call, call, r.Msg)
 		return b.Bytes()
 	})
 }
@@ -39,7 +51,7 @@ func main() {
 	if len(staticDir) == 0 {
 		pwd, _ := os.Getwd()
 		staticDir = filepath.Join(pwd, "static")
-		log.Info("Set THYRA_STATIC if you wish to configure the directory for static content")
+		log.Warn("Set THYRA_STATIC if you wish to configure the directory for static content")
 	}
 	log.Info(fmt.Sprintf("Using %s for static content", staticDir))
 
@@ -91,12 +103,12 @@ func main() {
 	signal.Notify(signals, os.Interrupt, os.Kill)
 	select {
 	case <-signals:
-		log.Info("Server is terminating...")
+		log.Warn("Server is terminating...")
 		close(quit)
 	}
 
 	wg.Wait()
-	log.Info("Server shutdown.")
+	log.Warn("Server shutdown.")
 }
 
 // handleRegistrations accepts requests for registration and replies back if the requested
@@ -111,7 +123,7 @@ func handleRegistrations(server game.Server, wg *sync.WaitGroup, quit chan struc
 
 		select {
 		case <-quit:
-			log.Info("handleRegistrations quit")
+			log.Warn("handleRegistrations quit")
 			return
 		case request := <-regRequest:
 			exists, err = server.LoadPlayer(request.Username)
@@ -123,7 +135,7 @@ func handleRegistrations(server game.Server, wg *sync.WaitGroup, quit chan struc
 			select {
 			case request.Reply <- exists:
 			case <-quit:
-				log.Info("handleRegistrations quit")
+				log.Warn("handleRegistrations quit")
 				return
 			}
 
@@ -145,7 +157,7 @@ func acceptConnections(
 	for {
 		select {
 		case <-quit:
-			log.Info("acceptConnections quit")
+			log.Warn("acceptConnections quit")
 			return
 		default:
 		}
@@ -267,171 +279,15 @@ func broadcast(
 	defer wg.Done()
 
 	wg.Add(1)
-	go god(&server, wg, quit, roomsMap)
+	go game.God(&server, wg, quit, roomsMap)
 
 	for {
 		select {
 		case request := <-reqChan:
 			server.HandleCommand(*request.Client, request.Cmd, roomsMap)
 		case <-quit:
-			log.Info("broadcast quit")
+			log.Warn("broadcast quit")
 			return
 		}
 	}
-}
-
-func god(
-	s *game.Server,
-	wg *sync.WaitGroup,
-	quit <-chan struct{},
-	map_array map[string]map[string][][]game.Cube,
-) {
-	log.Info("god started")
-	defer wg.Done()
-
-	for {
-		select {
-		case <-quit:
-			log.Info("god quit")
-			return
-
-		case ev := <-s.Events:
-			c := ev.Client
-
-			switch ev.Etype {
-			case "look":
-				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, "")
-
-			case "move_east":
-				msg := ""
-				if !do_move(s, *c, map_array, 0) {
-					msg = "You can't go that way"
-				}
-				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, msg)
-
-			case "move_west":
-				msg := ""
-				if !do_move(s, *c, map_array, 1) {
-					msg = "You can't go that way"
-				}
-				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, msg)
-
-			case "move_north":
-				msg := ""
-				if !do_move(s, *c, map_array, 2) {
-					msg = "You can't go that way"
-				}
-				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, msg)
-
-			case "move_south":
-				msg := ""
-				if !do_move(s, *c, map_array, 3) {
-					msg = "You can't go that way"
-				}
-				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, msg)
-
-			case "quit":
-				s.OnExit(*c)
-				c.Conn.Close()
-			}
-		}
-	}
-}
-
-func godPrint(s *game.Server, client *game.Client, wg *sync.WaitGroup, quit <-chan struct{}, roomsMap map[string]map[string][][]game.Cube, msg string) {
-	defer wg.Done()
-
-	room := client.Player.Room
-	preroom := client.Player.PreviousRoom
-	map_array := roomsMap[client.Player.Area][client.Player.Room]
-	map_array_pre := roomsMap[client.Player.PreviousArea][client.Player.PreviousRoom]
-
-	var onlineSameRoom []game.Client
-	var previousSameRoom []game.Client
-	online := s.OnlineClients()
-	for i := range online {
-		c := online[i]
-
-		if c.Player.Room == room {
-			onlineSameRoom = append(onlineSameRoom, c)
-		} else if c.Player.Room == preroom {
-			previousSameRoom = append(previousSameRoom, c)
-		}
-
-	}
-	p := client.Player
-
-	log.Info(fmt.Sprintf("Online players in the same room: %s", game.Clients(onlineSameRoom)))
-	for i := range onlineSameRoom {
-		c := onlineSameRoom[i]
-
-		buffintro := game.PrintIntro(s, p.Area, p.Room)
-		bufmap := game.PrintMap(s, p, map_array)
-		bufexits := game.PrintExits(game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position))
-
-		reply := game.Reply{
-			World: bufmap.Bytes(),
-			Intro: buffintro.Bytes(),
-			Exits: bufexits.String(),
-		}
-
-		if c.Player.Nickname == p.Nickname {
-			reply.Events = msg
-		}
-
-		select {
-		case c.Reply <- reply:
-		case <-quit:
-			return
-		}
-	}
-
-	for i := range previousSameRoom {
-		c := previousSameRoom[i]
-
-		buffexits := game.PrintExits(game.FindExits(map_array_pre, c.Player.Area, c.Player.Room, c.Player.Position))
-
-		bufmap := game.PrintMap(s, c.Player, map_array_pre)
-		buffintro := game.PrintIntro(s, c.Player.Area, c.Player.Room)
-
-		reply := game.Reply{
-			World: bufmap.Bytes(),
-			Intro: buffintro.Bytes(),
-			Exits: buffexits.String(),
-		}
-
-		if c.Player.Nickname == p.Nickname {
-			reply.Events = msg
-		}
-
-		select {
-		case c.Reply <- reply:
-		case <-quit:
-			return
-		}
-	}
-}
-
-func do_move(s *game.Server, c game.Client, roomsMap map[string]map[string][][]game.Cube, direction int) bool {
-	c.Player.PreviousArea = c.Player.Area
-	c.Player.PreviousRoom = c.Player.Room
-
-	map_array := roomsMap[c.Player.Area][c.Player.Room]
-	newpos, _ := strconv.Atoi(game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[direction][1])
-	posarray := game.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
-
-	if newpos > 0 {
-		c.Player.Position = strconv.Itoa(newpos)
-		delete(s.Players, c.Player.Nickname)
-		c.Player.Area = posarray[direction][0]
-		c.Player.Room = posarray[direction][2]
-		s.Players[c.Player.Nickname] = *c.Player
-		return true
-	}
-	return false
 }
