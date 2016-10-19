@@ -284,7 +284,7 @@ func broadcast(
 	for {
 		select {
 		case request := <-reqChan:
-			server.HandleCommand(*request.Client, request.Cmd, roomsMap)
+			server.HandleCommand(*request.Client, request.Cmd)
 		case <-quit:
 			log.Warn("broadcast quit")
 			return

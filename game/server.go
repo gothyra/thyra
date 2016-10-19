@@ -137,6 +137,11 @@ func (s *Server) LoadPlayer(playerName string) (bool, error) {
 	return true, nil
 }
 
+func (s *Server) GetPlayerByNick(nickname string) (Player, bool) {
+	player, ok := s.Players[nickname]
+	return player, ok
+}
+
 func (s *Server) CreatePlayer(nick string) {
 	ok, playerFileName := s.getPlayerFileName(nick)
 	if !ok {
