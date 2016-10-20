@@ -1,12 +1,9 @@
 package game
 
 import (
-	"fmt"
 	"io"
 	"strconv"
 	"unicode/utf8"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 const (
@@ -92,8 +89,6 @@ func update_size_maybe(c *Client) error {
 	c.Bbuffer.resize(termw, termh)
 	c.Fbuffer.resize(termw, termh)
 	c.Fbuffer.clear()
-
-	log.Info(fmt.Sprintf("New->W:%d H:%d", termw, termh))
 	return send_clear(c)
 
 }

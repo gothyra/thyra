@@ -5,7 +5,6 @@ import (
 	"io"
 
 	runewidth "github.com/mattn/go-runewidth"
-
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
@@ -24,19 +23,13 @@ func Init(c *Client) error {
 
 	//TODO : get terminal size from Client
 	termw, termh = 132, 32
-
-	log.Info(fmt.Sprintf("TermW: %d, TermH: %d ", termw, termh))
-
 	backb := New(termw, termh)
 	frontb := New(termw, termh)
-
-	log.Info("Clear Start")
 	backb.clear()
 	frontb.clear()
-
 	c.Bbuffer = backb
 	c.Fbuffer = frontb
-	log.Info(fmt.Sprintf("Init OK: %s", c.Player.Nickname))
+	log.Debug(fmt.Sprintf("Init OK: %s", c.Player.Nickname))
 	return nil
 }
 
@@ -60,8 +53,7 @@ func Flush(c *Client) error {
 	lastx = coord_invalid
 	lasty = coord_invalid
 
-	//update_size_maybe(c)
-	log.Info("Before FOR")
+	log.Debug(fmt.Sprintf("Flush Before FOR : %s", c.Player.Nickname))
 
 	width := c.Fbuffer.Width
 	height := c.Fbuffer.Height
@@ -109,12 +101,12 @@ func Flush(c *Client) error {
 			x += w
 		}
 	}
-	log.Info("After FOR")
+	log.Debug(fmt.Sprintf("Flush After FOR : %s", c.Player.Nickname))
 
 	if !is_cursor_hidden(cursor_x, cursor_y) {
 		write_cursor(cursor_x, cursor_y, *c)
 	}
-	log.Info(fmt.Sprintf("Flush: %s", c.Player.Nickname))
+	log.Debug(fmt.Sprintf("Flush End  : %s", c.Player.Nickname))
 	c.Buff.Reset()
 	return nil
 }

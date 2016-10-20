@@ -31,25 +31,21 @@ func God(
 				godPrint(s, c, wg, quit, map_array, "")
 
 			case "move_east":
-				wg.Add(1)
 				msg := do_move(s, *c, map_array, 0)
 				wg.Add(1)
 				godPrint(s, c, wg, quit, map_array, msg)
 
 			case "move_west":
-				wg.Add(1)
 				msg := do_move(s, *c, map_array, 1)
 				wg.Add(1)
 				godPrint(s, c, wg, quit, map_array, msg)
 
 			case "move_north":
-				wg.Add(1)
 				msg := do_move(s, *c, map_array, 2)
 				wg.Add(1)
 				godPrint(s, c, wg, quit, map_array, msg)
 
 			case "move_south":
-				wg.Add(1)
 				msg := do_move(s, *c, map_array, 3)
 				wg.Add(1)
 				godPrint(s, c, wg, quit, map_array, msg)
