@@ -215,7 +215,7 @@ func calcHP(class string, level int) int { // Εχει και προβλεψη �
 // Μεθοδος μαχης. Πρωτα βαραει ο comb1 και μετα ο comb2. Το initiative καθοριζεται στην main()
 // δοκιμασα "for comb1.HP > 0 || comb2.HP > 0 {" και κανει οτι να'ναι. Γιατι; Για τωρα δουλευει
 //  με αρχικο check των hit points σε ατερμονα βρογχο
-func fight(c Client, comb1, comb2 *PC) {
+func fight(comb1, comb2 *PC) {
 	for comb1.HP > 0 && comb2.HP > 0 {
 		if (random(1, 20) + comb1.BAB + attrModifier(comb1.STR)) >= comb2.AC {
 			hit := random(1, comb1.Weapondie)
@@ -275,7 +275,7 @@ func fight(c Client, comb1, comb2 *PC) {
 
 //------Main code------
 
-func do_fight(c Client) {
+func do_fight() {
 	rand.Seed(time.Now().Unix())
 
 	// Setting up player 1
@@ -314,9 +314,9 @@ func do_fight(c Client) {
 
 	switch {
 	case player1.Initiative > player2.Initiative:
-		fight(c, player1, player2)
+		fight(player1, player2)
 	case player1.Initiative < player2.Initiative:
-		fight(c, player2, player1)
+		fight(player2, player1)
 	default:
 		fmt.Println("Problem!")
 	}

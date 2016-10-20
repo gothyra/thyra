@@ -1,9 +1,48 @@
-package game
+package area
 
 import (
 	"bytes"
 	"strconv"
+
+	"github.com/gothyra/thyra/pkg/game"
 )
+
+type Area struct {
+	Name  string          `toml:"name"`
+	Intro string          `toml:"intro"`
+	Rooms map[string]Room `toml:"rooms"`
+}
+
+type Room struct {
+	Name        string `toml:"name"`
+	Description string `toml:"description"`
+	Cubes       []Cube `toml:"cubes"`
+}
+
+// Player holds all variables for a character.
+type Player struct {
+	Nickname string `toml:"nickname"`
+	game.PC
+	Area         string `toml:"area"`
+	Room         string `toml:"room"`
+	Position     string `toml:"position"`
+	PreviousRoom string `toml:"previousRoom"`
+	PreviousArea string `toml:"previousArea"`
+}
+
+type Cube struct {
+	ID    string `toml:"id"`
+	POSX  string `toml:"posx"`
+	POSY  string `toml:"posy"`
+	Exits []Exit `toml:"exits"`
+	Type  string `toml:"type"`
+}
+
+type Exit struct {
+	ToArea   string `toml:"toarea"`
+	ToRoom   string `toml:"toroom"`
+	ToCubeID string `toml:"tocubeid"`
+}
 
 func FindExits(s [][]Cube, area, room, pos string) [][]string {
 	exitarr := [][]string{}
@@ -123,34 +162,22 @@ func PrintExits(exit_array [][]string) bytes.Buffer { //Print exits,From returne
 	return buffer
 }
 
-func PrintMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
+func PrintMap(p *Player, online map[string]bool, s [][]Cube) bytes.Buffer {
 	var buffer bytes.Buffer
-
-	hasPlayer := map[string]string{}
-	//	pos := p.Position
-
-	for _, players := range server.OnlineClients() {
-
-		if players.Player.Room == p.Room {
-			if players.Player.Nickname == p.Nickname {
-				//pos = p.Position
-			}
-			hasPlayer[players.Player.Position] = players.Player.Nickname
-		}
-
-	}
 
 	for y := 0; y < len(s); y++ {
 
 		buffer.WriteString("|")
 
 		for x := 0; x < len(s); x++ {
-			_, ok := hasPlayer[s[x][y].ID]
+			current, ok := online[s[x][y].ID]
 			switch {
 			case s[x][y].Type == "door":
 				buffer.WriteString("O|")
-			case ok:
+			case ok && current:
 				buffer.WriteString("*|")
+			case ok && !current:
+				buffer.WriteString("@|")
 			case s[x][y].ID == "":
 				buffer.WriteString("X|")
 			default:
@@ -164,11 +191,8 @@ func PrintMap(server *Server, p *Player, s [][]Cube) bytes.Buffer {
 }
 
 // Print to intro tis area
-func PrintIntro(s *Server, areaID, room string) bytes.Buffer {
+func PrintIntro(desc string) bytes.Buffer {
 	var buffer bytes.Buffer
-
-	areaIntro := s.Areas[areaID].Rooms[room].Description
-	buffer.WriteString(areaIntro)
-
+	buffer.WriteString(desc)
 	return buffer
 }
