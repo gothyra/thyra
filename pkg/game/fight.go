@@ -12,22 +12,22 @@ import (
 
 // ------------Standard values-----------
 type PC struct { //Τα στοιχεια του χαρακτήρα.
-	STR        int    `xml:"str"`        //Strength του χαρακτήρα
-	DEX        int    `xml:"dex"`        //Dexterity του χαρακτήρα
-	CON        int    `xml:"con"`        //Constitution του χαρακτήρα
-	INT        int    `xml:"int"`        //Intelligence του χαρακτήρα
-	WIS        int    `xml:"wis"`        //Wisdomw του χαρακτήρα
-	CHA        int    `xml:"cha"`        //Charisma του χαρακτήρα
-	BAB        int    `xml:"bab"`        //Base attack Bonus του χαρακτήρα
-	AC         int    `xml:"ac"`         //Armor Class του χαρακτήρα
-	HP         int    `xml:"hp"`         //Hit points του χαρακτήρα
-	HD         int    `xml:"hd"`         //Hit dice του χαρακτήρα
-	Weapondie  int    `xml:"weapondie"`  //Τύπος ζαριού του όπλου του χαρακτήρα
-	Initiative int    `xml:"initiative"` //Χρειάζεται για την επιλογή ποιός θα παίξει πρώτος
-	Level      int    `xml:"level"`      //Επίπεδο του χαρακτήρα
-	Class      string `xml:"class"`      //Τύπος εξειδίκευσης του χαρακτήρα
-	Armor      string `xml:"armor"`      //Τύπος πανοπλίας που φοράει ο χαρακτήρας
-	Weapon     string `xml:"weapon"`     //Τύπος όπλου που κρατάει ο χαρακτήρας
+	STR        int    `toml:"str"`        //Strength του χαρακτήρα
+	DEX        int    `toml:"dex"`        //Dexterity του χαρακτήρα
+	CON        int    `toml:"con"`        //Constitution του χαρακτήρα
+	INT        int    `toml:"int"`        //Intelligence του χαρακτήρα
+	WIS        int    `toml:"wis"`        //Wisdomw του χαρακτήρα
+	CHA        int    `toml:"cha"`        //Charisma του χαρακτήρα
+	BAB        int    `toml:"bab"`        //Base attack Bonus του χαρακτήρα
+	AC         int    `toml:"ac"`         //Armor Class του χαρακτήρα
+	HP         int    `toml:"hp"`         //Hit points του χαρακτήρα
+	HD         int    `toml:"hd"`         //Hit dice του χαρακτήρα
+	Weapondie  int    `toml:"weapondie"`  //Τύπος ζαριού του όπλου του χαρακτήρα
+	Initiative int    `toml:"initiative"` //Χρειάζεται για την επιλογή ποιός θα παίξει πρώτος
+	Level      int    `toml:"level"`      //Επίπεδο του χαρακτήρα
+	Class      string `toml:"class"`      //Τύπος εξειδίκευσης του χαρακτήρα
+	Armor      string `toml:"armor"`      //Τύπος πανοπλίας που φοράει ο χαρακτήρας
+	Weapon     string `toml:"weapon"`     //Τύπος όπλου που κρατάει ο χαρακτήρας
 }
 
 /* Εκτελώντας την generateAttrib(), δίνουμε μια τυχαία τιμή από 8 ώς 18 σε κάθε ένα χαρακτηριστικό, και επιλέγουμε μια
