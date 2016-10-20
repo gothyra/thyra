@@ -13,9 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gothyra/thyra/game"
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/inconshreveable/log15.v2/stack"
+
+	"github.com/gothyra/thyra/pkg/area"
+	"github.com/gothyra/thyra/pkg/client"
+	"github.com/gothyra/thyra/pkg/server"
 )
 
 func customFormat() log.Format {
@@ -60,7 +63,7 @@ func main() {
 	flag.Parse()
 
 	// Setup and start the server
-	server := game.NewServer(staticDir)
+	server := server.NewServer(staticDir)
 
 	if err := server.LoadConfig(); err != nil {
 		os.Exit(1)
@@ -70,11 +73,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	roomsMap := make(map[string]map[string][][]game.Cube)
-	for _, area := range server.Areas {
-		roomsMap[area.Name] = make(map[string][][]game.Cube)
-		for _, room := range area.Rooms {
-			roomsMap[area.Name][room.Name] = server.CreateRoom_as_cubes(area.Name, room.Name)
+	roomsMap := make(map[string]map[string][][]area.Cube)
+	for _, a := range server.Areas {
+		roomsMap[a.Name] = make(map[string][][]area.Cube)
+		for _, room := range a.Rooms {
+			roomsMap[a.Name][room.Name] = server.CreateRoom(a.Name, room.Name)
 		}
 	}
 
@@ -87,8 +90,8 @@ func main() {
 
 	wg := &sync.WaitGroup{}
 	quit := make(chan struct{})
-	regRequest := make(chan game.LoginRequest, 1000)
-	clientRequest := make(chan game.Request, 1000)
+	regRequest := make(chan client.LoginRequest, 1000)
+	clientRequest := make(chan client.Request, 1000)
 
 	wg.Add(1)
 	go handleRegistrations(*server, wg, quit, regRequest)
@@ -113,7 +116,7 @@ func main() {
 
 // handleRegistrations accepts requests for registration and replies back if the requested
 // username exists or not.
-func handleRegistrations(server game.Server, wg *sync.WaitGroup, quit chan struct{}, regRequest chan game.LoginRequest) {
+func handleRegistrations(server server.Server, wg *sync.WaitGroup, quit chan struct{}, regRequest chan client.LoginRequest) {
 	log.Info("handleRegistrations started")
 	defer wg.Done()
 
@@ -145,11 +148,11 @@ func handleRegistrations(server game.Server, wg *sync.WaitGroup, quit chan struc
 
 func acceptConnections(
 	ln net.Listener,
-	server *game.Server,
+	server *server.Server,
 	wg *sync.WaitGroup,
 	quit <-chan struct{},
-	clientCh chan<- game.Request,
-	regRequest chan game.LoginRequest,
+	clientCh chan<- client.Request,
+	regRequest chan client.LoginRequest,
 ) {
 	log.Info("acceptConnections started")
 	defer wg.Done()
@@ -180,11 +183,11 @@ func acceptConnections(
 // handleConnection should be invoked as a goroutine.
 func handleConnection(
 	conn net.Conn,
-	server *game.Server,
+	s *server.Server,
 	wg *sync.WaitGroup,
 	quit <-chan struct{},
-	clientCh chan<- game.Request,
-	regRequest chan<- game.LoginRequest,
+	clientCh chan<- client.Request,
+	regRequest chan<- client.LoginRequest,
 ) {
 	log.Info("handleConnection started")
 	defer wg.Done()
@@ -207,7 +210,7 @@ out:
 		}
 
 		username = promptMessage(conn, bufc, "Whats your Nick?\n")
-		isValidName := game.IsValidUsername(username)
+		isValidName := server.IsValidUsername(username)
 		if !isValidName {
 			questions++
 			io.WriteString(conn, fmt.Sprintf("Username %s is not valid (0-9a-z_-).\n", username))
@@ -218,7 +221,7 @@ out:
 		replyCh := make(chan bool, 1)
 
 		select {
-		case regRequest <- game.LoginRequest{Username: username, Conn: conn, Reply: replyCh}:
+		case regRequest <- client.LoginRequest{Username: username, Conn: conn, Reply: replyCh}:
 		case <-quit:
 			return
 		}
@@ -238,18 +241,18 @@ out:
 		answer := promptMessage(conn, bufc, "Do you want to create that user? [y|n] ")
 
 		if answer == "y" || answer == "yes" {
-			server.CreatePlayer(username)
+			s.CreatePlayer(username)
 			break
 		}
 	}
 
-	player, _ := server.GetPlayerByNick(username)
-	c := game.NewClient(conn, &player, clientCh)
+	player, _ := s.GetPlayerByNick(username)
+	c := client.NewClient(conn, &player, clientCh)
 	log.Info(fmt.Sprintf("Player %q got connected", c.Player.Nickname))
-	server.ClientLoggedIn(c.Player.Nickname, *c)
+	s.ClientLoggedIn(c.Player.Nickname, *c)
 
 	wg.Add(1)
-	go game.Panel(c, wg, quit)
+	go c.Redraw(wg, quit)
 
 	// TODO: Main client thread is not terminating gracefully right now because it blocks on waiting
 	// for the user to hit Enter before proceeding to check for quit.
@@ -269,22 +272,22 @@ func promptMessage(c net.Conn, bufc *bufio.Reader, message string) string {
 
 // TODO: Maybe parallelize this so that each client request is handled on a separate routine.
 func broadcast(
-	server game.Server,
+	s server.Server,
 	wg *sync.WaitGroup,
 	quit <-chan struct{},
-	reqChan <-chan game.Request,
-	roomsMap map[string]map[string][][]game.Cube,
+	reqChan <-chan client.Request,
+	roomsMap map[string]map[string][][]area.Cube,
 ) {
 	log.Info("broadcast started")
 	defer wg.Done()
 
 	wg.Add(1)
-	go game.God(&server, wg, quit, roomsMap)
+	go server.God(&s, wg, quit, roomsMap)
 
 	for {
 		select {
 		case request := <-reqChan:
-			server.HandleCommand(*request.Client, request.Cmd)
+			s.HandleCommand(*request.Client, request.Cmd)
 		case <-quit:
 			log.Warn("broadcast quit")
 			return

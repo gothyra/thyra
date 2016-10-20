@@ -1,4 +1,4 @@
-package game
+package server
 
 import (
 	"bytes"
@@ -12,6 +12,10 @@ import (
 
 	"github.com/gothyra/toml"
 	log "gopkg.in/inconshreveable/log15.v2"
+
+	"github.com/gothyra/thyra/pkg/area"
+	"github.com/gothyra/thyra/pkg/client"
+	"github.com/gothyra/thyra/pkg/game"
 )
 
 type Config struct {
@@ -21,10 +25,10 @@ type Config struct {
 
 type Server struct {
 	sync.RWMutex
-	Players       map[string]Player
-	onlineClients map[string]*Client
-	Areas         map[string]Area
-	Events        chan Event
+	Players       map[string]area.Player
+	onlineClients map[string]*client.Client
+	Areas         map[string]area.Area
+	Events        chan client.Event
 
 	staticDir string
 	Config    Config
@@ -32,11 +36,11 @@ type Server struct {
 
 func NewServer(staticDir string) *Server {
 	return &Server{
-		Players:       make(map[string]Player),
-		onlineClients: make(map[string]*Client),
-		Areas:         make(map[string]Area),
+		Players:       make(map[string]area.Player),
+		onlineClients: make(map[string]*client.Client),
+		Areas:         make(map[string]area.Area),
 		staticDir:     staticDir,
-		Events:        make(chan Event, 1000),
+		Events:        make(chan client.Event, 1000),
 	}
 }
 
@@ -75,7 +79,7 @@ func (s *Server) LoadAreas() error {
 			return fileIoErr
 		}
 
-		area := Area{}
+		area := area.Area{}
 		if _, err := toml.Decode(string(fileContent), &area); err != nil {
 			log.Info(fmt.Sprintf("%s could not be unmarshaled: %v", path, err))
 			return err
@@ -124,7 +128,7 @@ func (s *Server) LoadPlayer(playerName string) (bool, error) {
 		return true, fileIoErr
 	}
 
-	player := Player{}
+	player := area.Player{}
 	if _, err := toml.Decode(string(fileContent), &player); err != nil {
 		log.Info(fmt.Sprintf("%s could not be unmarshaled: %v", playerFileName, err))
 		return true, err
@@ -137,7 +141,7 @@ func (s *Server) LoadPlayer(playerName string) (bool, error) {
 	return true, nil
 }
 
-func (s *Server) GetPlayerByNick(nickname string) (Player, bool) {
+func (s *Server) GetPlayerByNick(nickname string) (area.Player, bool) {
 	player, ok := s.Players[nickname]
 	return player, ok
 }
@@ -154,9 +158,9 @@ func (s *Server) CreatePlayer(nick string) {
 		}
 		return
 	}
-	player := Player{
+	player := area.Player{
 		Nickname: nick,
-		PC:       *NewPC(),
+		PC:       *game.NewPC(),
 		Area:     "City",
 		Room:     "Inn",
 		Position: "1",
@@ -165,7 +169,7 @@ func (s *Server) CreatePlayer(nick string) {
 	s.Players[player.Nickname] = player
 }
 
-func (s *Server) SavePlayer(player Player) bool {
+func (s *Server) SavePlayer(player area.Player) bool {
 	data := &bytes.Buffer{}
 	encoder := toml.NewEncoder(data)
 	err := encoder.Encode(player)
@@ -185,12 +189,12 @@ func (s *Server) SavePlayer(player Player) bool {
 	return false
 }
 
-func (s *Server) OnExit(client Client) {
+func (s *Server) OnExit(client client.Client) {
 	s.SavePlayer(*client.Player)
 	s.ClientLoggedOut(client.Player.Nickname)
 }
 
-func (s *Server) ClientLoggedIn(name string, client Client) {
+func (s *Server) ClientLoggedIn(name string, client client.Client) {
 	s.Lock()
 	s.onlineClients[name] = &client
 	s.Unlock()
@@ -202,11 +206,11 @@ func (s *Server) ClientLoggedOut(name string) {
 	s.Unlock()
 }
 
-func (s *Server) OnlineClients() []Client {
+func (s *Server) OnlineClients() []client.Client {
 	s.RLock()
 	defer s.RUnlock()
 
-	online := []Client{}
+	online := []client.Client{}
 	for _, online_clients := range s.onlineClients {
 		online = append(online, *online_clients)
 	}
@@ -227,18 +231,17 @@ func (s *Server) MapList() []string {
 	return maplist
 }
 
-// TODO: Remove from Server
-func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
+func (s *Server) CreateRoom(a, room string) [][]area.Cube {
 
 	biggestx := 0
 	biggesty := 0
 	biggest := 0
 
-	roomCubes := []Cube{}
+	roomCubes := []area.Cube{}
 	// TODO: Remove Areas from Server
-	for i := range s.Areas[area].Rooms {
-		if s.Areas[area].Rooms[i].Name == room {
-			roomCubes = s.Areas[area].Rooms[i].Cubes
+	for i := range s.Areas[a].Rooms {
+		if s.Areas[a].Rooms[i].Name == room {
+			roomCubes = s.Areas[a].Rooms[i].Cubes
 			break
 		}
 	}
@@ -267,9 +270,9 @@ func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
 	}
 	biggest++
 
-	maparray := make([][]Cube, biggest)
+	maparray := make([][]area.Cube, biggest)
 	for i := range maparray {
-		maparray[i] = make([]Cube, biggest)
+		maparray[i] = make([]area.Cube, biggest)
 	}
 
 	for z := range roomCubes {
@@ -283,11 +286,10 @@ func (s *Server) CreateRoom_as_cubes(area, room string) [][]Cube {
 	return maparray
 }
 
-// TODO: Remove from Server
-func (s *Server) HandleCommand(c Client, command string) {
+func (s *Server) HandleCommand(c client.Client, command string) {
 	//TODO split command to get arguments
 
-	event := Event{
+	event := client.Event{
 		Client: &c,
 	}
 
