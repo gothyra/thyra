@@ -18,17 +18,15 @@ import (
 )
 
 const (
-	ti_mouse_enter = "\x1b[?1000h\x1b[?1002h\x1b[?1015h\x1b[?1006h"
-	ti_mouse_leave = "\x1b[?1006l\x1b[?1015l\x1b[?1002l\x1b[?1000l"
-
-	cursorHidden = -1
-	coordInvalid = -2
-	attrInvalid  = Attribute(0xFFFF)
-
 	tEnterCa = iota
 	tExitCa
 	tClearScreen
 	tMaxFuncs
+)
+const (
+	cursorHidden = -1
+	coordInvalid = -2
+	attrInvalid  = Attribute(0xFFFF)
 
 	editBoxWidth = 120
 )
@@ -94,6 +92,8 @@ type Client struct {
 	cursorY    int
 	foreground Attribute
 	background Attribute
+	funcs      []string
+	keys       []string
 }
 
 func NewClient(c net.Conn, player *area.Player, req chan<- Request) *Client {
@@ -117,6 +117,8 @@ func NewClient(c net.Conn, player *area.Player, req chan<- Request) *Client {
 		cursorY:    cursorHidden,
 		foreground: ColorDefault,
 		background: ColorDefault,
+		funcs:      make([]string, tMaxFuncs),
+		keys:       []string{},
 	}
 }
 
@@ -140,12 +142,15 @@ func (c *Client) Redraw(wg *sync.WaitGroup, quit <-chan struct{}) {
 }
 
 func (c *Client) initScreen() {
-	funcs := make([]string, tMaxFuncs)
-	funcs[tMaxFuncs-2] = ti_mouse_enter
-	funcs[tMaxFuncs-1] = ti_mouse_leave
+	var err error
+	err = c.setup_term()
+	if err != nil {
+		log.Error(fmt.Sprintf("Error setup_term() : %v", err))
+		return
+	}
 
-	io.WriteString(c.Conn, funcs[tEnterCa])
-	io.WriteString(c.Conn, funcs[tClearScreen])
+	io.WriteString(c.Conn, c.funcs[tEnterCa])
+	io.WriteString(c.Conn, c.funcs[tClearScreen])
 
 	c.Bbuffer = New(c.termW, c.termH, c.foreground, c.background)
 	c.Fbuffer = New(c.termW, c.termH, c.foreground, c.background)
