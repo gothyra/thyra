@@ -45,6 +45,8 @@ type Exit struct {
 }
 
 func FindExits(s [][]Cube, area, room, pos string) [][]string {
+	//TODO : Randomize door exit
+
 	exitarr := [][]string{}
 	east := []string{area, "0", room}
 	west := []string{area, "0", room}

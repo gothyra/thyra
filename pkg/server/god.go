@@ -26,46 +26,92 @@ func God(
 			return
 
 		case ev := <-s.Events:
-			c := ev.Client
+			cl := ev.Client
+			c := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
 
 			switch ev.Etype {
 			case "look":
 				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, "")
+				godPrintRoom(s, c, wg, quit, map_array, "")
 
 			case "move_east":
-				msg := doMove(s, *c, map_array, 0)
+				msg := doMove(s, *cl, map_array, 0)
 				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, msg)
+				godPrintRoom(s, c, wg, quit, map_array, msg)
 
 			case "move_west":
-				msg := doMove(s, *c, map_array, 1)
+				msg := doMove(s, *cl, map_array, 1)
 				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, msg)
+				godPrintRoom(s, c, wg, quit, map_array, msg)
 
 			case "move_north":
-				msg := doMove(s, *c, map_array, 2)
+				msg := doMove(s, *cl, map_array, 2)
 				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, msg)
+				godPrintRoom(s, c, wg, quit, map_array, msg)
 
 			case "move_south":
-				msg := doMove(s, *c, map_array, 3)
+				msg := doMove(s, *cl, map_array, 3)
 				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, msg)
+				godPrintRoom(s, c, wg, quit, map_array, msg)
 
 			case "quit":
-				s.OnExit(*c)
-				c.Conn.Close()
+				//TODO :
+				//godPrint(s, c, wg, quit, map_array, fmt.Sprintf("%s has quit.", c.Player.Nickname))
+				//clients := s.OnlineClientsGetByRoom(c.Player.Area, c.Player.Room)
+				//for i := range clients {
+				//	log.Info(fmt.Sprintf("Clients same room : %s", clients[i].Player.Nickname))
+				//}
+				s.OnExit(*cl)
+				cl.Conn.Close()
 
 			case "unknown":
 				wg.Add(1)
-				godPrint(s, c, wg, quit, map_array, "Huh?")
+				godPrintRoom(s, c, wg, quit, map_array, "Huh?")
 
 			}
 		}
 	}
 }
 
+func godPrintRoom(s *Server, clients []client.Client, wg *sync.WaitGroup, quit <-chan struct{}, roomsMap map[string]map[string][][]area.Cube, msg string) {
+	defer wg.Done()
+
+	positionToCurrent := map[string]bool{}
+
+	map_array := roomsMap[clients[0].Player.Area][clients[0].Player.Room]
+	for i := range clients {
+		c := clients[i]
+		positionToCurrent[c.Player.Position] = false
+	}
+
+	for i := range clients {
+		c := clients[i]
+		p := c.Player
+
+		posToCurr := copyMapWithNewPos(positionToCurrent, c.Player.Position)
+
+		buffintro := area.PrintIntro(s.Areas[c.Player.Area].Rooms[c.Player.Room].Description)
+		bufmap := area.PrintMap(p, posToCurr, map_array)
+		bufexits := area.PrintExits(area.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position))
+
+		reply := client.Reply{
+			World: bufmap.Bytes(),
+			Intro: buffintro.Bytes(),
+			Exits: bufexits.String(),
+		}
+
+		if c.Player.Nickname == p.Nickname {
+			reply.Events = msg
+		}
+
+		select {
+		case c.Reply <- reply:
+		case <-quit:
+			return
+		}
+	}
+
+}
 func godPrint(s *Server, cl *client.Client, wg *sync.WaitGroup, quit <-chan struct{}, roomsMap map[string]map[string][][]area.Cube, msg string) {
 	defer wg.Done()
 

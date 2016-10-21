@@ -218,6 +218,34 @@ func (s *Server) OnlineClients() []client.Client {
 	return online
 }
 
+func (s *Server) OnlineClientsGetByRoom(area, room string) []client.Client {
+	clients := s.OnlineClients()
+	var clientsSameRoom []client.Client
+
+	for i := range clients {
+		c := clients[i]
+		if area == c.Player.Area && room == c.Player.Room {
+			clientsSameRoom = append(clientsSameRoom, c)
+		}
+	}
+
+	return clientsSameRoom
+}
+
+func (s *Server) OnlineClientsGetByPreviousRoom(area, room string) []client.Client {
+	clients := s.OnlineClients()
+	var clientsPreviousRoom []client.Client
+
+	for i := range clients {
+		c := clients[i]
+		if area == c.Player.PreviousArea && room == c.Player.PreviousRoom {
+			clientsPreviousRoom = append(clientsPreviousRoom, c)
+		}
+	}
+
+	return clientsPreviousRoom
+}
+
 func (s *Server) MapList() []string {
 	s.RLock()
 	defer s.RUnlock()
