@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 
@@ -32,27 +33,37 @@ func God(
 			switch ev.Etype {
 			case "look":
 				wg.Add(1)
-				godPrintRoom(s, c, wg, quit, map_array, "")
+				godPrintRoom(s, *cl, c, wg, quit, map_array, "", "")
 
 			case "move_east":
 				msg := doMove(s, *cl, map_array, 0)
 				wg.Add(1)
-				godPrintRoom(s, c, wg, quit, map_array, msg)
+				godPrintRoom(s, *cl, c, wg, quit, map_array, msg, "")
 
 			case "move_west":
 				msg := doMove(s, *cl, map_array, 1)
 				wg.Add(1)
-				godPrintRoom(s, c, wg, quit, map_array, msg)
+				godPrintRoom(s, *cl, c, wg, quit, map_array, msg, "")
 
 			case "move_north":
 				msg := doMove(s, *cl, map_array, 2)
 				wg.Add(1)
-				godPrintRoom(s, c, wg, quit, map_array, msg)
+				godPrintRoom(s, *cl, c, wg, quit, map_array, msg, "")
 
 			case "move_south":
 				msg := doMove(s, *cl, map_array, 3)
 				wg.Add(1)
-				godPrintRoom(s, c, wg, quit, map_array, msg)
+				godPrintRoom(s, *cl, c, wg, quit, map_array, msg, "")
+			case "enter_door":
+				currentroom := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
+				wg.Add(1)
+				godPrintRoom(s, *cl, currentroom, wg, quit, map_array, "", fmt.Sprintf("%s enter the room.", cl.Player.Nickname))
+
+				previousroom := s.OnlineClientsGetByRoom(cl.Player.PreviousArea, cl.Player.PreviousRoom)
+				if previousroom != nil {
+					wg.Add(1)
+					godPrintRoom(s, *cl, previousroom, wg, quit, map_array, "", fmt.Sprintf("%s left the room.", cl.Player.Nickname))
+				}
 
 			case "quit":
 				//TODO :
@@ -66,14 +77,23 @@ func God(
 
 			case "unknown":
 				wg.Add(1)
-				godPrintRoom(s, c, wg, quit, map_array, "Huh?")
+				godPrintRoom(s, *cl, c, wg, quit, map_array, "Huh?", "")
 
 			}
 		}
 	}
 }
 
-func godPrintRoom(s *Server, clients []client.Client, wg *sync.WaitGroup, quit <-chan struct{}, roomsMap map[string]map[string][][]area.Cube, msg string) {
+func godPrintRoom(
+	s *Server,
+	cl client.Client,
+	clients []client.Client,
+	wg *sync.WaitGroup,
+	quit <-chan struct{},
+	roomsMap map[string]map[string][][]area.Cube,
+	msg string,
+	global_msg string,
+) {
 	defer wg.Done()
 
 	positionToCurrent := map[string]bool{}
@@ -100,8 +120,10 @@ func godPrintRoom(s *Server, clients []client.Client, wg *sync.WaitGroup, quit <
 			Exits: bufexits.String(),
 		}
 
-		if c.Player.Nickname == p.Nickname {
+		if cl.Player.Nickname == p.Nickname {
 			reply.Events = msg
+		} else {
+			reply.Events = global_msg
 		}
 
 		select {
@@ -111,84 +133,6 @@ func godPrintRoom(s *Server, clients []client.Client, wg *sync.WaitGroup, quit <
 		}
 	}
 
-}
-func godPrint(s *Server, cl *client.Client, wg *sync.WaitGroup, quit <-chan struct{}, roomsMap map[string]map[string][][]area.Cube, msg string) {
-	defer wg.Done()
-
-	room := cl.Player.Room
-	preroom := cl.Player.PreviousRoom
-	map_array := roomsMap[cl.Player.Area][cl.Player.Room]
-	map_array_pre := roomsMap[cl.Player.PreviousArea][cl.Player.PreviousRoom]
-
-	var onlineSameRoom []client.Client
-	var previousSameRoom []client.Client
-	// positionToCurrent maps the positions of online players inside the room of the current
-	// player to a boolean which denotes if that position is held by the current player.
-	positionToCurrent := map[string]bool{}
-	// previousPositionToCurrent creates the respective positionToCurrent map for players in
-	// the previous room from the one the current player is.
-	previousPositionToCurrent := map[string]bool{}
-	online := s.OnlineClients()
-	for i := range online {
-		c := online[i]
-
-		if c.Player.Room == room {
-			positionToCurrent[c.Player.Position] = false
-			onlineSameRoom = append(onlineSameRoom, c)
-		} else if c.Player.Room == preroom {
-			previousPositionToCurrent[c.Player.Position] = false
-			previousSameRoom = append(previousSameRoom, c)
-		}
-	}
-	p := cl.Player
-
-	for i := range onlineSameRoom {
-		c := onlineSameRoom[i]
-
-		posToCurr := copyMapWithNewPos(positionToCurrent, c.Player.Position)
-
-		buffintro := area.PrintIntro(s.Areas[c.Player.Area].Rooms[c.Player.Room].Description)
-		bufmap := area.PrintMap(p, posToCurr, map_array)
-		bufexits := area.PrintExits(area.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position))
-
-		reply := client.Reply{
-			World: bufmap.Bytes(),
-			Intro: buffintro.Bytes(),
-			Exits: bufexits.String(),
-		}
-
-		if c.Player.Nickname == p.Nickname {
-			reply.Events = msg
-		}
-
-		select {
-		case c.Reply <- reply:
-		case <-quit:
-			return
-		}
-	}
-
-	for i := range previousSameRoom {
-		c := previousSameRoom[i]
-
-		posToCurr := copyMapWithNewPos(previousPositionToCurrent, c.Player.Position)
-
-		buffintro := area.PrintIntro(s.Areas[c.Player.Area].Rooms[c.Player.Room].Description)
-		bufmap := area.PrintMap(c.Player, posToCurr, map_array_pre)
-		buffexits := area.PrintExits(area.FindExits(map_array_pre, c.Player.Area, c.Player.Room, c.Player.Position))
-
-		reply := client.Reply{
-			World: bufmap.Bytes(),
-			Intro: buffintro.Bytes(),
-			Exits: buffexits.String(),
-		}
-
-		select {
-		case c.Reply <- reply:
-		case <-quit:
-			return
-		}
-	}
 }
 
 func copyMapWithNewPos(m map[string]bool, currentPos string) map[string]bool {
@@ -203,13 +147,22 @@ func copyMapWithNewPos(m map[string]bool, currentPos string) map[string]bool {
 }
 
 func doMove(s *Server, c client.Client, roomsMap map[string]map[string][][]area.Cube, direction int) string {
+	event := client.Event{
+		Client: &c,
+	}
 
 	map_array := roomsMap[c.Player.Area][c.Player.Room]
-	newpos, _ := strconv.Atoi(area.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)[direction][1])
 	posarray := area.FindExits(map_array, c.Player.Area, c.Player.Room, c.Player.Position)
+
+	newpos_type := posarray[direction][3]
+	if newpos_type == "door" {
+		event.Etype = "enter_door"
+		s.Events <- event
+	}
 
 	newarea := posarray[direction][0]
 	newroom := posarray[direction][2]
+	newpos, _ := strconv.Atoi(posarray[direction][1])
 	is_avail, pexist := isCubeAvailable(s, c, newarea, newroom, newpos)
 
 	if is_avail {
