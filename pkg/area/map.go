@@ -47,11 +47,12 @@ type Exit struct {
 func FindExits(s [][]Cube, area, room, pos string) [][]string {
 	//TODO : Randomize door exit
 
+	ctype := "cube"
 	exitarr := [][]string{}
-	east := []string{area, "0", room}
-	west := []string{area, "0", room}
-	north := []string{area, "0", room}
-	south := []string{area, "0", room}
+	east := []string{area, "0", room, ctype}
+	west := []string{area, "0", room, ctype}
+	north := []string{area, "0", room, ctype}
+	south := []string{area, "0", room, ctype}
 
 	exitarr = append(exitarr, east)
 	exitarr = append(exitarr, west)
@@ -88,6 +89,7 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 						exitarr[0][0] = s[x+1][y].Exits[0].ToArea
 						exitarr[0][1] = s[x+1][y].Exits[0].ToCubeID
 						exitarr[0][2] = s[x+1][y].Exits[0].ToRoom
+						exitarr[0][3] = "door"
 					} else {
 						exitarr[0][1] = s[x+1][y].ID //EAST
 
@@ -100,6 +102,7 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 						exitarr[1][0] = s[x-1][y].Exits[0].ToArea
 						exitarr[1][1] = s[x-1][y].Exits[0].ToCubeID
 						exitarr[1][2] = s[x-1][y].Exits[0].ToRoom
+						exitarr[1][3] = "door"
 					} else {
 
 						exitarr[1][1] = s[x-1][y].ID //WEST
@@ -112,6 +115,7 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 						exitarr[2][0] = s[x][y-1].Exits[0].ToArea
 						exitarr[2][1] = s[x][y-1].Exits[0].ToCubeID
 						exitarr[2][2] = s[x][y-1].Exits[0].ToRoom
+						exitarr[2][3] = "door"
 					} else {
 						exitarr[2][1] = s[x][y-1].ID //NORTH
 					}
@@ -123,6 +127,7 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 						exitarr[3][0] = s[x][y+1].Exits[0].ToArea
 						exitarr[3][1] = s[x][y+1].Exits[0].ToCubeID
 						exitarr[3][2] = s[x][y+1].Exits[0].ToRoom
+						exitarr[3][3] = "door"
 					} else {
 
 						exitarr[3][1] = s[x][y+1].ID //SOUTH
