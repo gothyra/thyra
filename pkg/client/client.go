@@ -389,8 +389,6 @@ func (c *Client) sendChar(x, y int, ch rune) {
 	}
 	c.lastx, c.lasty = x, y
 	c.Buff.Write(buf[:n])
-
-	io.WriteString(c.Conn, c.Buff.String())
 }
 
 // The shortcut for SetCursor(-1, -1).
