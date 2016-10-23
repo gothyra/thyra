@@ -18,11 +18,13 @@ import (
 	"github.com/gothyra/thyra/pkg/game"
 )
 
+// Config holds the server configuration.
 type Config struct {
 	host string
 	port int
 }
 
+// Server holds all the required fields for running a simple game server.
 type Server struct {
 	sync.RWMutex
 	Players       map[string]area.Player
@@ -34,6 +36,7 @@ type Server struct {
 	Config    Config
 }
 
+// NewServer creates a new Server.
 func NewServer(staticDir string) *Server {
 	return &Server{
 		Players:       make(map[string]area.Player),
@@ -44,6 +47,8 @@ func NewServer(staticDir string) *Server {
 	}
 }
 
+// LoadConfig loads in memory the server configuration from server.toml found in
+// the static directory.
 func (s *Server) LoadConfig() error {
 	log.Info("Loading config ...")
 
@@ -66,6 +71,10 @@ func (s *Server) LoadConfig() error {
 	return nil
 }
 
+// LoadAreas loads all the areas from the static directory into memory.
+// TODO: Change the way we load rooms into memory. We should load rooms
+// where online players are. We should also change our schema to hold
+// rooms in separate files.
 func (s *Server) LoadAreas() error {
 	log.Info("Loading areas ...")
 	areaWalker := func(path string, info os.FileInfo, err error) error {
@@ -102,6 +111,7 @@ func (s *Server) getPlayerFileName(playerName string) (bool, string) {
 	return true, s.staticDir + "/player/" + playerName + ".toml"
 }
 
+// IsValidUsername checks if the given player name is a valid one.
 func IsValidUsername(playerName string) bool {
 	r, err := regexp.Compile(`^[a-zA-Z0-9_-]{1,40}$`)
 	if err != nil {
@@ -113,6 +123,7 @@ func IsValidUsername(playerName string) bool {
 	return true
 }
 
+// LoadPlayer loads the player into memory.
 func (s *Server) LoadPlayer(playerName string) (bool, error) {
 	ok, playerFileName := s.getPlayerFileName(playerName)
 	if !ok {
@@ -141,11 +152,13 @@ func (s *Server) LoadPlayer(playerName string) (bool, error) {
 	return true, nil
 }
 
+// GetPlayerByNick returns the player by nickname.
 func (s *Server) GetPlayerByNick(nickname string) (area.Player, bool) {
 	player, ok := s.Players[nickname]
 	return player, ok
 }
 
+// CreatePlayer creates a player with the given nickname.
 func (s *Server) CreatePlayer(nick string) {
 	ok, playerFileName := s.getPlayerFileName(nick)
 	if !ok {
@@ -169,6 +182,9 @@ func (s *Server) CreatePlayer(nick string) {
 	s.Players[player.Nickname] = player
 }
 
+// SavePlayer saves the player back to the static directory.
+// TODO: Add an autosave mechanism instead of saving Players
+// once they quit.
 func (s *Server) SavePlayer(player area.Player) bool {
 	data := &bytes.Buffer{}
 	encoder := toml.NewEncoder(data)
@@ -189,35 +205,42 @@ func (s *Server) SavePlayer(player area.Player) bool {
 	return false
 }
 
+// OnExit is a handler run by the server every time a player quits.
 func (s *Server) OnExit(client client.Client) {
 	s.SavePlayer(*client.Player)
 	s.ClientLoggedOut(client.Player.Nickname)
 }
 
+// ClientLoggedIn stores the logged in player into an internal cache that holds
+// all online players.
 func (s *Server) ClientLoggedIn(name string, client client.Client) {
 	s.Lock()
 	s.onlineClients[name] = &client
 	s.Unlock()
 }
 
+// ClientLoggedOut removes the logged out player from the internal cache that
+// holds all online players.
 func (s *Server) ClientLoggedOut(name string) {
 	s.Lock()
 	delete(s.onlineClients, name)
 	s.Unlock()
 }
 
+// OnlineClients returns all the online players in the server.
 func (s *Server) OnlineClients() []client.Client {
 	s.RLock()
 	defer s.RUnlock()
 
 	online := []client.Client{}
-	for _, online_clients := range s.onlineClients {
-		online = append(online, *online_clients)
+	for _, onlineClient := range s.onlineClients {
+		online = append(online, *onlineClient)
 	}
 
 	return online
 }
 
+// OnlineClientsGetByRoom returns all the online players in the given room.
 func (s *Server) OnlineClientsGetByRoom(area, room string) []client.Client {
 	clients := s.OnlineClients()
 	var clientsSameRoom []client.Client
@@ -232,19 +255,7 @@ func (s *Server) OnlineClientsGetByRoom(area, room string) []client.Client {
 	return clientsSameRoom
 }
 
-func (s *Server) MapList() []string {
-	s.RLock()
-	defer s.RUnlock()
-
-	maplist := []string{}
-	// TODO: Remove Areas from Server
-	for area := range s.Areas {
-		maplist = append(maplist, area)
-	}
-
-	return maplist
-}
-
+// CreateRoom creates a 2-d array of cubes that essentially consists of a room.
 func (s *Server) CreateRoom(a, room string) [][]area.Cube {
 
 	biggestx := 0
@@ -300,6 +311,7 @@ func (s *Server) CreateRoom(a, room string) [][]area.Cube {
 	return maparray
 }
 
+// HandleCommand processes commands received by clients.
 func (s *Server) HandleCommand(c client.Client, command string) {
 	//TODO split command to get arguments
 

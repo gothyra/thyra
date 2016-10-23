@@ -1,6 +1,6 @@
 package main
 
-const WelcomePage = `
+const welcomePage = `
                                        /\
                                       /':\
                                      /''':\

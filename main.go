@@ -16,7 +16,6 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/inconshreveable/log15.v2/stack"
 
-	"github.com/gothyra/thyra/pkg/area"
 	"github.com/gothyra/thyra/pkg/client"
 	"github.com/gothyra/thyra/pkg/server"
 )
@@ -63,22 +62,14 @@ func main() {
 	flag.Parse()
 
 	// Setup and start the server
-	server := server.NewServer(staticDir)
+	s := server.NewServer(staticDir)
 
-	if err := server.LoadConfig(); err != nil {
+	if err := s.LoadConfig(); err != nil {
 		os.Exit(1)
 	}
 
-	if err := server.LoadAreas(); err != nil {
+	if err := s.LoadAreas(); err != nil {
 		os.Exit(1)
-	}
-
-	roomsMap := make(map[string]map[string][][]area.Cube)
-	for _, a := range server.Areas {
-		roomsMap[a.Name] = make(map[string][][]area.Cube)
-		for _, room := range a.Rooms {
-			roomsMap[a.Name][room.Name] = server.CreateRoom(a.Name, room.Name)
-		}
 	}
 
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
@@ -94,13 +85,13 @@ func main() {
 	clientRequest := make(chan client.Request, 1000)
 
 	wg.Add(1)
-	go handleRegistrations(*server, wg, quit, regRequest)
+	go handleRegistrations(*s, wg, quit, regRequest)
 
 	wg.Add(1)
-	go acceptConnections(ln, server, wg, quit, clientRequest, regRequest)
+	go acceptConnections(ln, s, wg, quit, clientRequest, regRequest)
 
 	wg.Add(1)
-	go broadcast(*server, wg, quit, clientRequest, roomsMap)
+	go broadcast(*s, wg, quit, clientRequest)
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill)
@@ -116,7 +107,7 @@ func main() {
 
 // handleRegistrations accepts requests for registration and replies back if the requested
 // username exists or not.
-func handleRegistrations(server server.Server, wg *sync.WaitGroup, quit chan struct{}, regRequest chan client.LoginRequest) {
+func handleRegistrations(s server.Server, wg *sync.WaitGroup, quit chan struct{}, regRequest chan client.LoginRequest) {
 	log.Info("handleRegistrations started")
 	defer wg.Done()
 
@@ -129,7 +120,7 @@ func handleRegistrations(server server.Server, wg *sync.WaitGroup, quit chan str
 			log.Warn("handleRegistrations quit")
 			return
 		case request := <-regRequest:
-			exists, err = server.LoadPlayer(request.Username)
+			exists, err = s.LoadPlayer(request.Username)
 			if err != nil {
 				io.WriteString(request.Conn, fmt.Sprintf("%s\n", err.Error()))
 				continue
@@ -148,7 +139,7 @@ func handleRegistrations(server server.Server, wg *sync.WaitGroup, quit chan str
 
 func acceptConnections(
 	ln net.Listener,
-	server *server.Server,
+	s *server.Server,
 	wg *sync.WaitGroup,
 	quit <-chan struct{},
 	clientCh chan<- client.Request,
@@ -176,7 +167,7 @@ func acceptConnections(
 
 		// TODO: handleConnection is not terminating gracefully right now because it blocks on waiting
 		// ReadLinesInto to quit which in turn is blocked on user input.
-		go handleConnection(conn, server, wg, quit, clientCh, regRequest)
+		go handleConnection(conn, s, wg, quit, clientCh, regRequest)
 	}
 }
 
@@ -197,7 +188,7 @@ func handleConnection(
 
 	log.Info(fmt.Sprintf("New connection open: %s", conn.RemoteAddr()))
 
-	io.WriteString(conn, WelcomePage)
+	io.WriteString(conn, welcomePage)
 
 	var username string
 	questions := 0
@@ -271,18 +262,12 @@ func promptMessage(c net.Conn, bufc *bufio.Reader, message string) string {
 }
 
 // TODO: Maybe parallelize this so that each client request is handled on a separate routine.
-func broadcast(
-	s server.Server,
-	wg *sync.WaitGroup,
-	quit <-chan struct{},
-	reqChan <-chan client.Request,
-	roomsMap map[string]map[string][][]area.Cube,
-) {
+func broadcast(s server.Server, wg *sync.WaitGroup, quit <-chan struct{}, reqChan <-chan client.Request) {
 	log.Info("broadcast started")
 	defer wg.Done()
 
 	wg.Add(1)
-	go server.God(&s, wg, quit, roomsMap)
+	go server.God(&s, wg, quit)
 
 	for {
 		select {
