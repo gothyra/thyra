@@ -1,4 +1,2 @@
-main
 thyra
-.player
-.area
+*.toml
