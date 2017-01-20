@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"ssh_server/server"
+	"github.com/droslean/thyraNew/server"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/inconshreveable/log15.v2/stack"
