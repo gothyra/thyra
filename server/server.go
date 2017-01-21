@@ -30,6 +30,7 @@ type Server struct {
 	newPlayers    chan *Player
 	onlinePlayers map[string](*Player)
 	lines         int
+	Events        chan Event
 }
 
 func NewServer(db *Database, port int, idPool <-chan ID) (*Server, error) {
@@ -39,6 +40,7 @@ func NewServer(db *Database, port int, idPool <-chan ID) (*Server, error) {
 		logf:          log.New(os.Stdout, "server: ", 0).Printf,
 		onlinePlayers: make(map[string]*Player),
 		lines:         1,
+		Events:        make(chan Event),
 		//newPlayers: make(chan *Player),
 	}
 	if err := db.GetPrivateKey(s); err != nil {
@@ -152,7 +154,9 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 
 	// Start threads
 	// Prompt Bar is in beta mode. In futere in this place there will be the GOD thread.
+	go God(s)
 	go p.promptBar(s)
+
 	go p.resizeWatch()
 
 	go func() {

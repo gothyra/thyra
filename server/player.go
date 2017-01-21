@@ -98,6 +98,10 @@ type Player struct {
 	once                 *sync.Once
 	command              []string
 	commandHistory       []string
+	rollback             int
+	wantHistory          bool
+	fromHistoryToCmd     string
+	finalCmd             string
 }
 
 // NewPlayer returns an initialized Player.
@@ -116,6 +120,8 @@ func NewPlayer(id ID, sshName, name, hash string, conn ssh.Channel) *Player {
 		once:           &sync.Once{},
 		command:        make([]string, 1),
 		commandHistory: make([]string, 1),
+		rollback:       0,
+		wantHistory:    false,
 	}
 	return p
 }
@@ -151,14 +157,8 @@ func (p *Player) resizeWatch() {
 func (p *Player) promptBar(s *Server) {
 
 	buff := make([]byte, 3)
-
-	wantHistory := false
-	fromHistoryToCmd := ""
-	p.conn.Write(ansi.Goto(1, 1))
-	rollback := 0
-
 	for {
-		log.Debug(fmt.Sprintf("read buff is : %v", buff))
+		//log.Debug(fmt.Sprintf("read buff is : %v", buff))
 		n, err := p.conn.Read(buff)
 
 		if err != nil {
@@ -173,8 +173,6 @@ func (p *Player) promptBar(s *Server) {
 		if !p.ready {
 			continue
 		}
-		toCommand := ""
-		finalCmd := ""
 
 		// Parse Arrows
 		if len(b) == 3 && b[0] == ansi.Esc && b[1] == 91 {
@@ -184,57 +182,16 @@ func (p *Player) promptBar(s *Server) {
 			// We use ARROW_UP to go back in command history.
 			case c == ARROW_UP:
 				//cursorBehavor = []byte{ansi.Esc, 91, 65}
-				wantHistory = true
-				p.conn.Write(ansi.EraseLine)
-				p.conn.Write(ansi.Goto(uint16(p.h+s.lines), 1))
-
-				rollback++
-
-				log.Info(fmt.Sprintf("%d - %d = %d ", len(p.commandHistory), rollback, len(p.commandHistory)-rollback))
-				if len(p.commandHistory)-rollback > 0 {
-					if len(p.commandHistory)-rollback == 1 {
-						rollback--
-						p.conn.Write([]byte(p.commandHistory[1]))
-						fromHistoryToCmd = p.commandHistory[1]
-
-					} else {
-						p.conn.Write([]byte(p.commandHistory[len(p.commandHistory)-rollback]))
-						fromHistoryToCmd = p.commandHistory[len(p.commandHistory)-rollback]
-					}
-
-				} else {
-					log.Info("No command history")
-					wantHistory = false
-					rollback--
-				}
+				p.wantHistory = true
+				p.arrowUp()
 
 			// We use ARROW_DOWN to go forward in command history.
 			case c == ARROW_DOWN:
 				//cursorBehavor = []byte{ansi.Esc, 91, 66}
-				wantHistory = true
-				p.conn.Write(ansi.EraseLine)
-				p.conn.Write(ansi.Goto(uint16(p.h+s.lines), 1))
+				p.wantHistory = true
+				p.arrowDown()
 
-				rollback--
-
-				log.Info(fmt.Sprintf("%d - %d = %d ", len(p.commandHistory), rollback, len(p.commandHistory)-rollback))
-				if len(p.commandHistory)-rollback < len(p.commandHistory) {
-					if len(p.commandHistory)-rollback == 1 {
-						rollback++
-						p.conn.Write([]byte(p.commandHistory[1]))
-						fromHistoryToCmd = p.commandHistory[1]
-
-					} else {
-						p.conn.Write([]byte(p.commandHistory[len(p.commandHistory)-rollback]))
-						fromHistoryToCmd = p.commandHistory[len(p.commandHistory)-rollback]
-					}
-
-				} else {
-					log.Info("No command history")
-					wantHistory = false
-					rollback++
-				}
-
+			// TODO : User right -left to insert - delete the p.command
 			case c == ARROW_RIGHT:
 				cursorBehavor = []byte{ansi.Esc, 91, 67}
 			case c == ARROW_LEFT:
@@ -242,7 +199,7 @@ func (p *Player) promptBar(s *Server) {
 			}
 			p.conn.Write(cursorBehavor)
 		} else {
-			rollback = 0
+			p.rollback = 0
 		}
 
 		switch n := b[0]; {
@@ -251,62 +208,30 @@ func (p *Player) promptBar(s *Server) {
 		case n >= UPPER_ALPHA && n <= UPPER_OMEGA:
 			num := b[0] - 65
 			p.conn.Write([]byte(strings.ToUpper(alphabet[num])))
-			toCommand = strings.ToUpper(alphabet[num])
+			p.command = append(p.command, strings.ToUpper(alphabet[num]))
 
 		// Check for lowercase letters
 		case n >= LOW_ALPHA && n <= LOW_OMEGA:
 			num := b[0] - 97
 			p.conn.Write([]byte(alphabet[num]))
-			toCommand = alphabet[num]
+			p.command = append(p.command, alphabet[num])
 
 		// Check for numbers
-		// TODO : FIX Number output to screen.
-		// TODO : num is now a byte
 		case n >= NUM_0 && n <= NUM_9:
 			num := b[0] - 48
 			p.conn.Write([]byte(fmt.Sprintf("%d", num)))
-			toCommand = fmt.Sprintf("%d", num)
+			p.command = append(p.command, fmt.Sprintf("%d", num))
 
-		//Enter key
+		// Enter key
 		case n == ENTER_KEY:
-			p.conn.Write(ansi.EraseLine)
-			//p.conn.EraseScreen()
-			p.conn.Write(ansi.Goto(1, 1))
-
-			p.conn.Write(ansi.CursorHide)
-
-			if wantHistory {
-				finalCmd = fromHistoryToCmd
-
-			} else {
-				finalCmd = p.getCommandAsString()
-			}
-
-			p.commandHistory = append(p.commandHistory, finalCmd)
-			log.Info(fmt.Sprintf("Command is %s", finalCmd))
-
-			for _, onlineClient := range s.onlinePlayers {
-
-				onlineClient.conn.Write([]byte(string(ansi.Goto(uint16(onlineClient.h-onlineClient.h+s.lines), 1)) + p.Name + " : " + finalCmd))
-				onlineClient.conn.Write(ansi.Goto(uint16(onlineClient.h+s.lines), 1))
-
-			}
-			s.lines++
-			p.conn.Write(ansi.CursorShow)
-			//TRY TO DRAW THE PROMPT BAR :
-			p.conn.Write([]byte(string(ansi.Goto(uint16(p.h)-2, 1)) + p.fillPromptBar()))
-			p.conn.Write([]byte(string(ansi.Goto(uint16(p.h), 1)) + p.fillPromptBar()))
-			p.conn.Write(ansi.Goto(uint16(p.h)-1, 1))
-
-			// Clear command array to re-use it again.
-			p.command = []string{}
-
-		//Space key
+			p.enterKey(s)
+		// Space key
 		case n == SPACE_KEY:
 			p.conn.Write([]byte(" "))
-			toCommand = " "
+			p.command = append(p.command, " ")
 
-		//Backspace key
+		// Backspace key
+		// TODO : Backspace is deleting the p.command. Make this work.!
 		case n == BACKSPACE_KEY:
 			backSpace := []byte{27, 91, 68}
 			p.conn.Write([]byte("\b "))
@@ -314,13 +239,11 @@ func (p *Player) promptBar(s *Server) {
 
 		//  Key ] only for debuging purpose.
 		case n == 93:
+			p.drawPromptBar()
 			log.Info(fmt.Sprintf("%#v", p.commandHistory))
+			log.Info(fmt.Sprintf("%#v", p.command))
 		}
-
-		p.command = append(p.command, toCommand)
-
 	}
-
 }
 
 func (p *Player) getCommandAsString() string {
@@ -337,4 +260,91 @@ func (p *Player) fillPromptBar() string {
 		promptBar += "-"
 	}
 	return promptBar
+}
+
+func (p *Player) drawPromptBar() {
+	p.conn.Write([]byte(string(ansi.Goto(uint16(p.h)-2, 1)) + p.fillPromptBar()))
+	p.conn.Write([]byte(string(ansi.Goto(uint16(p.h), 1)) + p.fillPromptBar()))
+	p.conn.Write(ansi.Goto(uint16(p.h)-1, 1))
+}
+
+// TODO : Split the string from commandHistory to p.command array
+func (p *Player) arrowUp() {
+
+	p.conn.Write(ansi.EraseLine)
+	p.conn.Write(ansi.Goto(uint16(p.h-1), 1))
+
+	p.rollback++
+
+	log.Debug(fmt.Sprintf("Len %d , Rollback %d", len(p.commandHistory), p.rollback))
+	if len(p.commandHistory)-p.rollback > 0 {
+		if len(p.commandHistory)-p.rollback == 1 {
+			p.rollback--
+			p.conn.Write([]byte(p.commandHistory[1]))
+			p.fromHistoryToCmd = p.commandHistory[1]
+
+		} else if len(p.commandHistory)-p.rollback > 1 {
+			p.conn.Write([]byte(p.commandHistory[len(p.commandHistory)-p.rollback]))
+			p.fromHistoryToCmd = p.commandHistory[len(p.commandHistory)-p.rollback]
+		}
+	} else {
+		log.Debug("No command history")
+		p.wantHistory = false
+		p.rollback--
+	}
+}
+
+// TODO : Split the string from commandHistory to p.command array
+func (p *Player) arrowDown() {
+
+	p.conn.Write(ansi.EraseLine)
+	p.conn.Write(ansi.Goto(uint16(p.h-1), 1))
+	p.rollback--
+
+	log.Debug(fmt.Sprintf("Len %d , Rollback %d", len(p.commandHistory), p.rollback))
+	if len(p.commandHistory)-p.rollback < len(p.commandHistory) {
+		if len(p.commandHistory)-p.rollback == 1 {
+			p.rollback++
+			p.conn.Write([]byte(p.commandHistory[1]))
+			p.fromHistoryToCmd = p.commandHistory[1]
+		} else {
+			p.conn.Write([]byte(p.commandHistory[len(p.commandHistory)-p.rollback]))
+			p.fromHistoryToCmd = p.commandHistory[len(p.commandHistory)-p.rollback]
+		}
+	} else {
+		log.Debug("No command history")
+		p.wantHistory = false
+		p.rollback++
+	}
+}
+
+// This function sends an event to s.Events channel.
+// GOD thread will handle those events.
+func (p *Player) enterKey(s *Server) {
+	p.conn.Write(ansi.EraseLine)
+	p.conn.Write(ansi.Goto(uint16(p.h)-1, 1))
+	p.conn.Write(ansi.CursorHide)
+
+	if p.wantHistory && p.fromHistoryToCmd != "" {
+		p.wantHistory = false
+		p.finalCmd = p.fromHistoryToCmd
+
+	} else {
+		p.finalCmd = p.getCommandAsString()
+	}
+	p.commandHistory = append(p.commandHistory, p.finalCmd)
+
+	for _, onlineClient := range s.onlinePlayers {
+		onlineClient.conn.Write([]byte(string(ansi.Goto(uint16(onlineClient.h-onlineClient.h+s.lines), 1)) + p.Name + " : " + p.finalCmd))
+		onlineClient.conn.Write(ansi.Goto(uint16(onlineClient.h+s.lines), 1))
+	}
+
+	s.lines++
+	p.conn.Write(ansi.CursorShow)
+
+	p.drawPromptBar()
+	event := Event{Player: p, EventType: p.getCommandAsString()}
+	s.Events <- event
+	// Clear command array to re-use it again.
+	p.command = []string{}
 }
