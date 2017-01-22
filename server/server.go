@@ -156,7 +156,6 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 	// Prompt Bar is in beta mode. In futere in this place there will be the GOD thread.
 	go God(s)
 	go p.promptBar(s)
-
 	go p.resizeWatch()
 
 	go func() {

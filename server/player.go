@@ -4,78 +4,10 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"sync"
 
 	"github.com/jpillora/ansi"
 	"golang.org/x/crypto/ssh"
 	log "gopkg.in/inconshreveable/log15.v2"
-)
-
-const (
-	ARROW_UP = iota + 65
-	ARROW_DOWN
-	ARROW_RIGHT
-	ARROW_LEFT
-)
-
-const (
-	ENTER_KEY     = 13
-	SPACE_KEY     = 32
-	BACKSPACE_KEY = 127
-	DELETE_KEY    = 27
-)
-
-const (
-	NUM_0 = iota + 48
-	NUM_1
-	NUM_2
-	NUM_3
-	NUM_4
-	NUM_5
-	NUM_6
-	NUM_7
-	NUM_8
-	NUM_9
-)
-
-const (
-	LOW_ALPHA = 97
-	LOW_OMEGA = 122
-)
-
-const (
-	UPPER_ALPHA = 65
-	UPPER_OMEGA = 90
-)
-
-var (
-	alphabet = []string{
-		"a",
-		"b",
-		"c",
-		"d",
-		"e",
-		"f",
-		"g",
-		"h",
-		"i",
-		"j",
-		"k",
-		"l",
-		"m",
-		"n",
-		"o",
-		"p",
-		"q",
-		"r",
-		"s",
-		"t",
-		"u",
-		"v",
-		"w",
-		"x",
-		"y",
-		"z"}
 )
 
 type resize struct {
@@ -95,13 +27,10 @@ type Player struct {
 	ready                bool
 	resizes              chan resize
 	conn                 *ansi.Ansi
-	logf                 func(format string, args ...interface{})
-	once                 *sync.Once
 	command              []string
 	commandHistory       []string
 	rollback             int
 	wantHistory          bool
-	finalCmd             string
 	position             int
 }
 
@@ -118,8 +47,7 @@ func NewPlayer(id ID, sshName, name, hash string, conn ssh.Channel) *Player {
 		ready:          false,
 		resizes:        make(chan resize),
 		conn:           ansi.Wrap(conn),
-		once:           &sync.Once{},
-		command:        make([]string, 1),
+		command:        make([]string, 0),
 		commandHistory: make([]string, 1),
 		rollback:       0,
 		wantHistory:    false,
@@ -131,6 +59,19 @@ func NewPlayer(id ID, sshName, name, hash string, conn ssh.Channel) *Player {
 var resizeTmpl = string(ansi.Goto(2, 5)) +
 	string(ansi.Set(ansi.Blue)) +
 	"Please resize your terminal to %dx%d (+%dx+%d)"
+
+func (p *Player) resetScreen() {
+	p.screenRunes = make([][]rune, p.w)
+	p.screenColors = make([][]ID, p.w)
+	for w := 0; w < p.w; w++ {
+		p.screenRunes[w] = make([]rune, p.h)
+		p.screenColors[w] = make([]ID, p.h)
+		for h := 0; h < p.h; h++ {
+			p.screenRunes[w][h] = 'x'
+			p.screenColors[w][h] = ID(255)
+		}
+	}
+}
 
 func (p *Player) resizeWatch() {
 	for r := range p.resizes {
@@ -156,12 +97,11 @@ func (p *Player) resizeWatch() {
 	}
 }
 
-// TODO : Add special characters
 func (p *Player) promptBar(s *Server) {
 	buff := make([]byte, 3)
 
 	for {
-		//log.Debug(fmt.Sprintf("read buff is : %v", buff))
+		log.Debug(fmt.Sprintf("read buff is : %v", buff))
 		n, err := p.conn.Read(buff)
 
 		if err != nil {
@@ -211,6 +151,35 @@ func (p *Player) promptBar(s *Server) {
 		}
 
 		switch n := b[0]; {
+
+		// Check Special chars 1st part
+		case n >= 33 && n <= 47:
+			num := b[0] - 33
+			p.conn.Write([]byte(specialChars1[num]))
+			p.command = append(p.command, specialChars1[num])
+			p.position++
+
+			// Check Special chars 2nd part
+		case n >= 58 && n <= 64:
+			num := b[0] - 58
+			p.conn.Write([]byte(specialChars2[num]))
+			p.command = append(p.command, specialChars2[num])
+			p.position++
+
+			// Check Special chars 3rd part
+		case n >= 91 && n <= 96:
+			num := b[0] - 91
+			p.conn.Write([]byte(specialChars3[num]))
+			p.command = append(p.command, specialChars3[num])
+			p.position++
+
+			// Check Special chars 4th part
+		case n >= 123 && n <= 126:
+			num := b[0] - 123
+			p.conn.Write([]byte(specialChars4[num]))
+			p.command = append(p.command, specialChars4[num])
+			p.position++
+
 		// Check uppercase letters
 		case n >= UPPER_ALPHA && n <= UPPER_OMEGA:
 			num := b[0] - 65
@@ -234,14 +203,15 @@ func (p *Player) promptBar(s *Server) {
 
 		// Enter key
 		case n == ENTER_KEY:
-			p.enterKey(s)
+			if len(p.command) > 0 {
+				p.enterKey(s)
+			}
 		// Space key
 		case n == SPACE_KEY:
 			p.position++
 			if p.position < len(p.command) {
 				p.command = InsertInSlice(p.command, p.position-1, " ")
-				p.conn.Write(ansi.EraseLine)
-				p.conn.Write(ansi.Goto(uint16(p.h)-1, 1))
+				p.clearPromptBar()
 				p.conn.Write([]byte(p.getCommandAsString()))
 				p.conn.Write(ansi.Goto(uint16(p.h)-1, uint16(p.position)+1))
 
@@ -263,7 +233,6 @@ func (p *Player) promptBar(s *Server) {
 		case n == DELETE_KEY && b[2] == 51:
 			if p.position < len(p.command) {
 				p.deletePartofCommand(p.position)
-
 				p.clearPromptBar()
 				p.conn.Write([]byte(p.getCommandAsString()))
 				p.conn.Write(ansi.Goto(uint16(p.h)-1, uint16(p.position)+1))
@@ -273,6 +242,7 @@ func (p *Player) promptBar(s *Server) {
 		case n == 93:
 			log.Info(fmt.Sprintf("%#v", p.commandHistory))
 			log.Info(fmt.Sprintf("%#v", p.command))
+
 		}
 		//log.Debug(fmt.Sprintf("Position %d", p.position))
 	}
@@ -295,7 +265,7 @@ func (p *Player) convertCommadHistoryToArray(command string) {
 func (p *Player) fillPromptBar() string {
 	promptBar := ""
 	for i := 0; i < p.w; i++ {
-		promptBar += "-"
+		promptBar += "~"
 	}
 	return promptBar
 }
@@ -363,17 +333,19 @@ func (p *Player) arrowDown() {
 // This function sends an event to s.Events channel.
 // GOD thread will handle those events.
 func (p *Player) enterKey(s *Server) {
-	p.conn.Write(ansi.EraseLine)
-	p.conn.Write(ansi.Goto(uint16(p.h)-1, 1))
+	p.clearPromptBar()
 	p.conn.Write(ansi.CursorHide)
 
 	p.commandHistory = append(p.commandHistory, p.getCommandAsString())
 
 	for _, onlineClient := range s.onlinePlayers {
+		if s.lines == onlineClient.h-2 {
+			onlineClient.conn.Write(ansi.EraseScreen)
+			s.lines = 1
+		}
 		onlineClient.conn.Write([]byte(string(ansi.Goto(uint16(onlineClient.h-onlineClient.h+s.lines), 1)) + p.Name + " : " + p.getCommandAsString()))
-		onlineClient.conn.Write(ansi.Goto(uint16(onlineClient.h+s.lines), 1))
+		onlineClient.conn.Write(ansi.Goto(uint16(onlineClient.h)-1, uint16(onlineClient.position)+1))
 	}
-
 	s.lines++
 	p.conn.Write(ansi.CursorShow)
 
