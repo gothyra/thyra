@@ -18,8 +18,6 @@ type Player struct {
 	id                   ID     // identification
 	hash                 string //hash of public key
 	SSHName, Name, cname string
-	rank, index          int
-	x, y                 uint8    // position
 	w, h                 int      // terminal size
 	screenRunes          [][]rune // the player's view of the screen
 	screenColors         [][]ID   // the player's view of the screen
@@ -44,7 +42,6 @@ func NewPlayer(id ID, sshName, name, hash string, conn ssh.Channel) *Player {
 		conn:      ansi.Wrap(conn),
 		promptBar: NewPromptBar(),
 	}
-	p.promptBar.player = p
 	return p
 }
 
@@ -89,10 +86,10 @@ func (p *Player) resizeWatch() {
 	}
 }
 
-func (p *Player) receiveActions(s *Server) {
+func (p *Player) receiveActions(s *Server, player *Player) {
 
 	// Start Prompt Bar
-	go p.promptBar.promptBar(s)
+	go p.promptBar.promptBar(s, player)
 
 	buff := make([]byte, 3)
 

@@ -22,6 +22,9 @@ func God(s *Server) {
 			case "quit":
 				ev.Player.conn.Write(ansi.EraseScreen)
 				ev.Player.conn.Close()
+			case "history":
+				log.Info(fmt.Sprintf("%#v", ev.Player.promptBar.commandHistory))
+				log.Info(fmt.Sprintf("%#v", ev.Player.promptBar.command))
 			}
 			log.Info(fmt.Sprintf("%s : %s", ev.Player.Name, ev.EventType))
 

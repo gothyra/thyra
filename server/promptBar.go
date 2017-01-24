@@ -14,18 +14,16 @@ type PromptBar struct {
 	rollback       int
 	wantHistory    bool
 	position       int
-	player         *Player
 	promptChan     chan []byte
 }
 
 func NewPromptBar() *PromptBar {
 	promptBar := &PromptBar{
 		command:        make([]string, 0),
-		commandHistory: make([]string, 1),
+		commandHistory: make([]string, 0),
 		rollback:       0,
 		wantHistory:    false,
 		position:       0,
-		player:         &Player{},
 		promptChan:     make(chan []byte, 3),
 	}
 	return promptBar
@@ -146,7 +144,7 @@ var (
 	}
 )
 
-func (p *PromptBar) promptBar(s *Server) {
+func (p *PromptBar) promptBar(s *Server, player *Player) {
 
 	for {
 		b := <-p.promptChan
@@ -159,12 +157,12 @@ func (p *PromptBar) promptBar(s *Server) {
 			// We use ARROW_UP to go back in command history.
 			case c == ARROW_UP:
 				p.wantHistory = true
-				p.arrowUp()
+				p.arrowUp(player)
 
 			// We use ARROW_DOWN to go forward in command history.
 			case c == ARROW_DOWN:
 				p.wantHistory = true
-				p.arrowDown()
+				p.arrowDown(player)
 
 			// We use ARROW_RIGHT to move right through the command for backspace and delete purpose.
 			case c == ARROW_RIGHT:
@@ -179,7 +177,7 @@ func (p *PromptBar) promptBar(s *Server) {
 					p.position--
 				}
 			}
-			p.player.conn.Write(cursorBehavor)
+			player.conn.Write(cursorBehavor)
 		} else {
 			p.rollback = 0
 		}
@@ -189,68 +187,68 @@ func (p *PromptBar) promptBar(s *Server) {
 		// Check Special chars 1st part
 		case n >= 33 && n <= 47:
 			num := b[0] - 33
-			p.player.conn.Write([]byte(specialChars1[num]))
+			player.conn.Write([]byte(specialChars1[num]))
 			p.command = append(p.command, specialChars1[num])
 			p.position++
 
 			// Check Special chars 2nd part
 		case n >= 58 && n <= 64:
 			num := b[0] - 58
-			p.player.conn.Write([]byte(specialChars2[num]))
+			player.conn.Write([]byte(specialChars2[num]))
 			p.command = append(p.command, specialChars2[num])
 			p.position++
 
 			// Check Special chars 3rd part
 		case n >= 91 && n <= 96:
 			num := b[0] - 91
-			p.player.conn.Write([]byte(specialChars3[num]))
+			player.conn.Write([]byte(specialChars3[num]))
 			p.command = append(p.command, specialChars3[num])
 			p.position++
 
 			// Check Special chars 4th part
 		case n >= 123 && n <= 126:
 			num := b[0] - 123
-			p.player.conn.Write([]byte(specialChars4[num]))
+			player.conn.Write([]byte(specialChars4[num]))
 			p.command = append(p.command, specialChars4[num])
 			p.position++
 
 		// Check uppercase letters
 		case n >= UPPER_ALPHA && n <= UPPER_OMEGA:
 			num := b[0] - 65
-			p.player.conn.Write([]byte(strings.ToUpper(alphabet[num])))
+			player.conn.Write([]byte(strings.ToUpper(alphabet[num])))
 			p.command = append(p.command, strings.ToUpper(alphabet[num]))
 			p.position++
 
 		// Check for lowercase letters
 		case n >= LOW_ALPHA && n <= LOW_OMEGA:
 			num := b[0] - 97
-			p.player.conn.Write([]byte(alphabet[num]))
+			player.conn.Write([]byte(alphabet[num]))
 			p.command = append(p.command, alphabet[num])
 			p.position++
 
 		// Check for numbers
 		case n >= NUM_0 && n <= NUM_9:
 			num := b[0] - 48
-			p.player.conn.Write([]byte(fmt.Sprintf("%d", num)))
+			player.conn.Write([]byte(fmt.Sprintf("%d", num)))
 			p.command = append(p.command, fmt.Sprintf("%d", num))
 			p.position++
 
 		// Enter key
 		case n == ENTER_KEY:
 			if len(p.command) > 0 {
-				p.enterKey(s)
+				p.enterKey(s, player)
 			}
 		// Space key
 		case n == SPACE_KEY:
 			p.position++
 			if p.position < len(p.command) {
 				p.command = InsertInSlice(p.command, p.position-1, " ")
-				p.clearPromptBar()
-				p.player.conn.Write([]byte(p.getCommandAsString()))
-				p.player.conn.Write(ansi.Goto(uint16(p.player.h)-1, uint16(p.position)+1))
+				p.clearPromptBar(player)
+				player.conn.Write([]byte(p.getCommandAsString()))
+				player.conn.Write(ansi.Goto(uint16(player.h)-1, uint16(p.position)+1))
 
 			} else {
-				p.player.conn.Write([]byte(" "))
+				player.conn.Write([]byte(" "))
 				p.command = append(p.command, " ")
 			}
 
@@ -259,17 +257,17 @@ func (p *PromptBar) promptBar(s *Server) {
 			if p.position > 0 {
 				p.deletePartofCommand(p.position - 1)
 				p.position--
-				p.clearPromptBar()
-				p.player.conn.Write([]byte(p.getCommandAsString()))
-				p.player.conn.Write(ansi.Goto(uint16(p.player.h)-1, uint16(p.position)+1))
+				p.clearPromptBar(player)
+				player.conn.Write([]byte(p.getCommandAsString()))
+				player.conn.Write(ansi.Goto(uint16(player.h)-1, uint16(p.position)+1))
 			}
 			// Delete Key
 		case n == DELETE_KEY && b[2] == 51:
 			if p.position < len(p.command) {
 				p.deletePartofCommand(p.position)
-				p.clearPromptBar()
-				p.player.conn.Write([]byte(p.getCommandAsString()))
-				p.player.conn.Write(ansi.Goto(uint16(p.player.h)-1, uint16(p.position)+1))
+				p.clearPromptBar(player)
+				player.conn.Write([]byte(p.getCommandAsString()))
+				player.conn.Write(ansi.Goto(uint16(player.h)-1, uint16(p.position)+1))
 			}
 
 		//  Key ] only for debuging purpose.
@@ -296,69 +294,60 @@ func (p *PromptBar) convertCommadHistoryToArray(command string) {
 	}
 }
 
-func (p *PromptBar) fillPromptBar() string {
+func (p *PromptBar) fillPromptBar(player *Player) string {
 	promptBar := ""
-	for i := 0; i < p.player.w; i++ {
+	for i := 0; i < player.w; i++ {
 		promptBar += "~"
 	}
 	return promptBar
 }
 
-func (p *PromptBar) drawPromptBar() {
-	p.player.conn.Write([]byte(string(ansi.Goto(uint16(p.player.h)-2, 1)) + p.fillPromptBar()))
-	p.player.conn.Write([]byte(string(ansi.Goto(uint16(p.player.h), 1)) + p.fillPromptBar()))
-	p.player.conn.Write(ansi.Goto(uint16(p.player.h)-1, 1))
+func (p *PromptBar) drawPromptBar(player *Player) {
+	player.conn.Write([]byte(string(ansi.Goto(uint16(player.h)-2, 1)) + p.fillPromptBar(player)))
+	player.conn.Write([]byte(string(ansi.Goto(uint16(player.h), 1)) + p.fillPromptBar(player)))
+	player.conn.Write(ansi.Goto(uint16(player.h)-1, 1))
 }
 
 // Travel backwards through the history of commands
-func (p *PromptBar) arrowUp() {
-	p.clearPromptBar()
+func (p *PromptBar) arrowUp(player *Player) {
+	p.clearPromptBar(player)
 	p.rollback++
-
 	log.Debug(fmt.Sprintf("Len %d , Rollback %d", len(p.commandHistory), p.rollback))
-	if len(p.commandHistory)-p.rollback > 0 {
+	if len(p.commandHistory)-p.rollback >= 0 {
 		// Clear command array to re-use it again.
 		p.command = []string{}
-		if len(p.commandHistory)-p.rollback == 1 {
-			p.rollback--
-			p.player.conn.Write([]byte(p.commandHistory[1]))
-			p.convertCommadHistoryToArray(p.commandHistory[1])
-			p.position = len(p.command)
 
-		} else if len(p.commandHistory)-p.rollback > 1 {
-			p.player.conn.Write([]byte(p.commandHistory[len(p.commandHistory)-p.rollback]))
-			p.convertCommadHistoryToArray(p.commandHistory[len(p.commandHistory)-p.rollback])
-			p.position = len(p.command)
+		player.conn.Write([]byte(p.commandHistory[len(p.commandHistory)-p.rollback]))
+		p.convertCommadHistoryToArray(p.commandHistory[len(p.commandHistory)-p.rollback])
 
-		}
+		p.position = len(p.command)
+
 	} else {
 		log.Debug("No command history")
+		// Clear command array to re-use it again.
+		p.command = []string{}
 		p.wantHistory = false
 		p.rollback--
 	}
 }
 
 // Travel forwards through the history of commands
-func (p *PromptBar) arrowDown() {
-	p.clearPromptBar()
+func (p *PromptBar) arrowDown(player *Player) {
+	p.clearPromptBar(player)
 	p.rollback--
 
 	log.Debug(fmt.Sprintf("Len %d , Rollback %d", len(p.commandHistory), p.rollback))
-	if len(p.commandHistory)-p.rollback < len(p.commandHistory) {
+	if p.rollback > 0 {
 		// Clear command array to re-use it again.
 		p.command = []string{}
-		if len(p.commandHistory)-p.rollback == 1 {
-			p.rollback++
-			p.player.conn.Write([]byte(p.commandHistory[1]))
-			p.convertCommadHistoryToArray(p.commandHistory[1])
-			p.position = len(p.command)
-		} else {
-			p.player.conn.Write([]byte(p.commandHistory[len(p.commandHistory)-p.rollback]))
-			p.convertCommadHistoryToArray(p.commandHistory[len(p.commandHistory)-p.rollback])
-			p.position = len(p.command)
-		}
+		player.conn.Write([]byte(p.commandHistory[len(p.commandHistory)-p.rollback]))
+		p.convertCommadHistoryToArray(p.commandHistory[len(p.commandHistory)-p.rollback])
+		p.position = len(p.command)
+
 	} else {
 		log.Debug("No command history")
+		// Clear command array to re-use it again.
+		p.command = []string{}
 		p.wantHistory = false
 		p.rollback++
 	}
@@ -366,16 +355,16 @@ func (p *PromptBar) arrowDown() {
 
 // This function sends an event to s.Events channel.
 // GOD thread will handle those events.
-func (p *PromptBar) enterKey(s *Server) {
-	p.clearPromptBar()
-	p.player.conn.Write(ansi.CursorHide)
+func (p *PromptBar) enterKey(s *Server, player *Player) {
+	p.clearPromptBar(player)
+	player.conn.Write(ansi.CursorHide)
 
 	p.commandHistory = append(p.commandHistory, p.getCommandAsString())
 
-	p.player.conn.Write(ansi.CursorShow)
+	player.conn.Write(ansi.CursorShow)
 
-	p.drawPromptBar()
-	event := Event{Player: p.player, EventType: p.getCommandAsString()}
+	p.drawPromptBar(player)
+	event := Event{Player: player, EventType: p.getCommandAsString()}
 	s.Events <- event
 	// Clear command array to re-use it again.
 	p.command = []string{}
@@ -404,7 +393,7 @@ func InsertInSlice(original []string, position int, value string) []string {
 	return target
 }
 
-func (p *PromptBar) clearPromptBar() {
-	p.player.conn.Write(ansi.EraseLine)
-	p.player.conn.Write(ansi.Goto(uint16(p.player.h)-1, 1))
+func (p *PromptBar) clearPromptBar(player *Player) {
+	player.conn.Write(ansi.EraseLine)
+	player.conn.Write(ansi.Goto(uint16(player.h)-1, 1))
 }
