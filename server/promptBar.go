@@ -170,7 +170,7 @@ func (p *PromptBar) promptBar(s *Server, player *Player) {
 					cursorBehavor = []byte{ansi.Esc, 91, 67}
 					p.position++
 				}
-			// We use ARROW_RIGHT to move left through the command for backspace and delete purpose.
+			// We use ARROW_LEFT to move left through the command for backspace and delete purpose.
 			case c == ARROW_LEFT:
 				if len(p.command) > 0 {
 					cursorBehavor = []byte{ansi.Esc, 91, 68}
@@ -187,49 +187,49 @@ func (p *PromptBar) promptBar(s *Server, player *Player) {
 		// Check Special chars 1st part
 		case n >= 33 && n <= 47:
 			num := b[0] - 33
-			player.conn.Write([]byte(specialChars1[num]))
+			player.writeString(specialChars1[num])
 			p.command = append(p.command, specialChars1[num])
 			p.position++
 
 			// Check Special chars 2nd part
 		case n >= 58 && n <= 64:
 			num := b[0] - 58
-			player.conn.Write([]byte(specialChars2[num]))
+			player.writeString(specialChars2[num])
 			p.command = append(p.command, specialChars2[num])
 			p.position++
 
 			// Check Special chars 3rd part
 		case n >= 91 && n <= 96:
 			num := b[0] - 91
-			player.conn.Write([]byte(specialChars3[num]))
+			player.writeString(specialChars3[num])
 			p.command = append(p.command, specialChars3[num])
 			p.position++
 
 			// Check Special chars 4th part
 		case n >= 123 && n <= 126:
 			num := b[0] - 123
-			player.conn.Write([]byte(specialChars4[num]))
+			player.writeString(specialChars4[num])
 			p.command = append(p.command, specialChars4[num])
 			p.position++
 
 		// Check uppercase letters
 		case n >= UPPER_ALPHA && n <= UPPER_OMEGA:
 			num := b[0] - 65
-			player.conn.Write([]byte(strings.ToUpper(alphabet[num])))
+			player.writeString(strings.ToUpper(alphabet[num]))
 			p.command = append(p.command, strings.ToUpper(alphabet[num]))
 			p.position++
 
 		// Check for lowercase letters
 		case n >= LOW_ALPHA && n <= LOW_OMEGA:
 			num := b[0] - 97
-			player.conn.Write([]byte(alphabet[num]))
+			player.writeString(alphabet[num])
 			p.command = append(p.command, alphabet[num])
 			p.position++
 
 		// Check for numbers
 		case n >= NUM_0 && n <= NUM_9:
 			num := b[0] - 48
-			player.conn.Write([]byte(fmt.Sprintf("%d", num)))
+			player.writeString(fmt.Sprintf("%d", num))
 			p.command = append(p.command, fmt.Sprintf("%d", num))
 			p.position++
 
@@ -244,11 +244,11 @@ func (p *PromptBar) promptBar(s *Server, player *Player) {
 			if p.position < len(p.command) {
 				p.command = InsertInSlice(p.command, p.position-1, " ")
 				p.clearPromptBar(player)
-				player.conn.Write([]byte(p.getCommandAsString()))
-				player.conn.Write(ansi.Goto(uint16(player.h)-1, uint16(p.position)+1))
+				player.writeString(p.getCommandAsString())
+				player.writeGoto(player.h-1, p.position+1)
 
 			} else {
-				player.conn.Write([]byte(" "))
+				player.writeString(" ")
 				p.command = append(p.command, " ")
 			}
 
@@ -258,16 +258,16 @@ func (p *PromptBar) promptBar(s *Server, player *Player) {
 				p.deletePartofCommand(p.position - 1)
 				p.position--
 				p.clearPromptBar(player)
-				player.conn.Write([]byte(p.getCommandAsString()))
-				player.conn.Write(ansi.Goto(uint16(player.h)-1, uint16(p.position)+1))
+				player.writeString(p.getCommandAsString())
+				player.writeGoto(player.h-1, p.position+1)
 			}
 			// Delete Key
 		case n == DELETE_KEY && b[2] == 51:
 			if p.position < len(p.command) {
 				p.deletePartofCommand(p.position)
 				p.clearPromptBar(player)
-				player.conn.Write([]byte(p.getCommandAsString()))
-				player.conn.Write(ansi.Goto(uint16(player.h)-1, uint16(p.position)+1))
+				player.writeString(p.getCommandAsString())
+				player.writeGoto(player.h-1, p.position+1)
 			}
 
 		//  Key ] only for debuging purpose.
@@ -276,7 +276,8 @@ func (p *PromptBar) promptBar(s *Server, player *Player) {
 			log.Info(fmt.Sprintf("%#v", p.command))
 
 		}
-		//log.Debug(fmt.Sprintf("Position %d", p.position))
+		//event := Event{Player: player, EventType: p.getCommandAsString()}
+		//s.Events <- event
 	}
 }
 
@@ -317,7 +318,7 @@ func (p *PromptBar) arrowUp(player *Player) {
 		// Clear command array to re-use it again.
 		p.command = []string{}
 
-		player.conn.Write([]byte(p.commandHistory[len(p.commandHistory)-p.rollback]))
+		player.writeString(p.commandHistory[len(p.commandHistory)-p.rollback])
 		p.convertCommadHistoryToArray(p.commandHistory[len(p.commandHistory)-p.rollback])
 
 		p.position = len(p.command)
@@ -340,7 +341,7 @@ func (p *PromptBar) arrowDown(player *Player) {
 	if p.rollback > 0 {
 		// Clear command array to re-use it again.
 		p.command = []string{}
-		player.conn.Write([]byte(p.commandHistory[len(p.commandHistory)-p.rollback]))
+		player.writeString(p.commandHistory[len(p.commandHistory)-p.rollback])
 		p.convertCommadHistoryToArray(p.commandHistory[len(p.commandHistory)-p.rollback])
 		p.position = len(p.command)
 
@@ -366,6 +367,7 @@ func (p *PromptBar) enterKey(s *Server, player *Player) {
 	p.drawPromptBar(player)
 	event := Event{Player: player, EventType: p.getCommandAsString()}
 	s.Events <- event
+
 	// Clear command array to re-use it again.
 	p.command = []string{}
 
@@ -378,7 +380,7 @@ func (p *PromptBar) deletePartofCommand(position int) {
 }
 
 func InsertInSlice(original []string, position int, value string) []string {
-	//we'll grow by 1
+	//grow by 1
 	target := make([]string, len(original)+1)
 
 	//copy everything up to the position

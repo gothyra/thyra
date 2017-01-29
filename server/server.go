@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -22,15 +23,16 @@ var (
 )
 
 type Server struct {
+	sync.RWMutex
 	port          int
 	addresses     string
 	idPool        <-chan ID
 	logf          func(format string, args ...interface{})
 	privateKey    ssh.Signer
 	newPlayers    chan *Player
-	onlinePlayers map[string](*Player)
-	lines         int
+	onlineClients map[string]*Player
 	Events        chan Event
+	lines         int
 }
 
 func NewServer(db *Database, port int, idPool <-chan ID) (*Server, error) {
@@ -38,9 +40,9 @@ func NewServer(db *Database, port int, idPool <-chan ID) (*Server, error) {
 		port:          port,
 		idPool:        idPool,
 		logf:          log.New(os.Stdout, "server: ", 0).Printf,
-		onlinePlayers: make(map[string]*Player),
-		lines:         1,
+		onlineClients: make(map[string]*Player),
 		Events:        make(chan Event),
+		lines:         1,
 		//newPlayers: make(chan *Player),
 	}
 	if err := db.GetPrivateKey(s); err != nil {
@@ -150,7 +152,7 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 	}
 	log.Printf("Creating new player %q: id: %d, hash: %s", name, id, hash)
 	p := NewPlayer(id, sshName, name, hash, conn)
-	s.onlinePlayers[p.Name] = p
+	s.clientLoggedIn(p.Name, *p)
 
 	// Start threads
 	// Prompt Bar is in beta mode. In futere in this place there will be the GOD thread.
@@ -209,4 +211,33 @@ func fingerprintKey(k ssh.PublicKey) string {
 		strbytes[i] = fmt.Sprintf("%02x", b)
 	}
 	return strings.Join(strbytes, ":")
+}
+
+// OnlineClients returns all the online players in the server.
+func (s *Server) OnlineClients() []Player {
+	s.RLock()
+	defer s.RUnlock()
+
+	online := []Player{}
+	for _, onlineClient := range s.onlineClients {
+		online = append(online, *onlineClient)
+	}
+
+	return online
+}
+
+// clientLoggedIn stores the logged in player into an internal cache that holds
+// all online players.
+func (s *Server) clientLoggedIn(name string, client Player) {
+	s.Lock()
+	s.onlineClients[name] = &client
+	s.Unlock()
+}
+
+// clientLoggedOut removes the logged out player from the internal cache that
+// holds all online players.
+func (s *Server) clientLoggedOut(name string) {
+	s.Lock()
+	delete(s.onlineClients, name)
+	s.Unlock()
 }

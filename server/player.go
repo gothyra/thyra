@@ -114,3 +114,11 @@ func (p *Player) receiveActions(s *Server, player *Player) {
 	}
 
 }
+
+func (p *Player) writeString(message string) {
+	p.conn.Write([]byte(message))
+}
+
+func (p *Player) writeGoto(x, y int) {
+	p.conn.Write(ansi.Goto(uint16(x), uint16(y)))
+}
