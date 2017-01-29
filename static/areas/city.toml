@@ -1,0 +1,93 @@
+name = "City"
+intro = "This looks like a nice little electronics lab, maybe solder something."
+
+[rooms.Inn]
+name = "Inn" 
+description = """
+The inn is a two-storey stone-walled building, with a small walled yard and garden. 
+It is fancifully decorated, and brightly lit by glowing gemstones set into the ceiling. 
+Accomodations consist of several small rooms with beds and woolen mattresses.
+"""
+cubes = [ 
+{ id = "1", posx = "0", posy = "0", type="door",
+ exits = [ { toarea = "City", toroom ="Market", tocubeid = "2" },
+ ] },
+{ id = "2", posx = "0", posy = "1" },
+{ id = "5", posx = "0", posy = "4" },
+{ id = "6", posx = "1", posy = "0" },
+{ id = "7", posx = "1", posy = "1" },
+{ id = "10", posx = "1", posy = "4" },
+{ id = "11", posx = "2", posy = "0" },
+{ id = "12", posx = "2", posy = "1" },
+{ id = "13", posx = "2", posy = "2" },
+{ id = "14", posx = "2", posy = "3" },
+{ id = "15", posx = "2", posy = "4" },
+{ id = "16", posx = "3", posy = "0" },
+{ id = "17", posx = "3", posy = "1" },
+{ id = "20", posx = "3", posy = "4" },
+{ id = "21", posx = "4", posy = "0" },
+{ id = "22", posx = "4", posy = "1" },
+{ id = "23", posx = "4", posy = "2" },
+{ id = "25", posx = "4", posy = "4" },
+{ id = "26", posx = "5", posy = "0" },
+{ id = "27", posx = "5", posy = "1" },
+{ id = "28", posx = "5", posy = "2" },
+{ id = "29", posx = "5", posy = "3" },
+{ id = "30", posx = "5", posy = "4" },
+{ id = "31", posx = "6", posy = "0" },
+{ id = "32", posx = "6", posy = "1" },
+{ id = "33", posx = "6", posy = "2" },
+{ id = "35", posx = "6", posy = "4" },
+{ id = "36", posx = "7", posy = "0" },
+{ id = "37", posx = "7", posy = "1" },
+{ id = "38", posx = "7", posy = "2" },
+{ id = "40", posx = "7", posy = "4" },
+{ id = "41", posx = "8", posy = "0" },
+{ id = "42", posx = "8", posy = "1" },
+{ id = "43", posx = "8", posy = "2" },
+{ id = "45", posx = "8", posy = "4" },
+{ id = "46", posx = "7", posy = "0" },
+{ id = "47", posx = "7", posy = "1" },
+{ id = "48", posx = "7", posy = "2" },
+{ id = "50", posx = "7", posy = "5" },
+{ id = "51", posx = "0", posy = "6" },
+{ id = "52", posx = "1", posy = "6" },
+{ id = "53", posx = "2", posy = "6" },
+{ id = "54", posx = "3", posy = "6" },
+{ id = "55", posx = "4", posy = "6" },
+{ id = "56", posx = "5", posy = "6" },
+{ id = "57", posx = "6", posy = "6" },
+{ id = "58", posx = "7", posy = "6" },
+{ id = "59", posx = "8", posy = "6" },
+{ id = "60", posx = "9", posy = "6" },
+{ id = "61", posx = "0", posy = "7" },
+{ id = "62", posx = "1", posy = "7" },
+{ id = "63", posx = "2", posy = "7" },
+{ id = "64", posx = "3", posy = "7" },
+{ id = "65", posx = "4", posy = "7" },
+{ id = "66", posx = "5", posy = "7" },
+{ id = "67", posx = "6", posy = "7" },
+{ id = "68", posx = "7", posy = "7" },
+{ id = "69", posx = "8", posy = "7" },
+{ id = "70", posx = "9", posy = "7" },
+{ id = "71", posx = "10", posy = "7" },
+{ id = "72", posx = "11", posy = "7" },
+{ id = "73", posx = "12", posy = "7" },
+]
+    
+[rooms.Market]
+name = "Market"
+description = """
+In a market quarter, surrounded by shadowed alleys and colorful marketplaces.
+The street outside is filled with the scent of damp earth.
+"""
+cubes = [
+{ id = "1", posx = "0", posy = "0", type = "door",
+exits = [ { toarea = "City", toroom ="Inn", tocubeid = "2"}
+ ] },
+
+{ id = "2", posx = "0", posy = "1" },
+{ id = "3", posx = "0", posy = "2" },
+{ id = "4", posx = "0", posy = "3" },
+{ id = "5", posx = "0", posy = "4" },
+]

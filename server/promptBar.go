@@ -144,7 +144,7 @@ var (
 	}
 )
 
-func (p *PromptBar) promptBar(s *Server, player *Player) {
+func (p *PromptBar) promptBar(s *Server, player *Client) {
 
 	for {
 		b := <-p.promptChan
@@ -295,7 +295,7 @@ func (p *PromptBar) convertCommadHistoryToArray(command string) {
 	}
 }
 
-func (p *PromptBar) fillPromptBar(player *Player) string {
+func (p *PromptBar) fillPromptBar(player *Client) string {
 	promptBar := ""
 	for i := 0; i < player.w; i++ {
 		promptBar += "~"
@@ -303,14 +303,14 @@ func (p *PromptBar) fillPromptBar(player *Player) string {
 	return promptBar
 }
 
-func (p *PromptBar) drawPromptBar(player *Player) {
+func (p *PromptBar) drawPromptBar(player *Client) {
 	player.conn.Write([]byte(string(ansi.Goto(uint16(player.h)-2, 1)) + p.fillPromptBar(player)))
 	player.conn.Write([]byte(string(ansi.Goto(uint16(player.h), 1)) + p.fillPromptBar(player)))
 	player.conn.Write(ansi.Goto(uint16(player.h)-1, 1))
 }
 
 // Travel backwards through the history of commands
-func (p *PromptBar) arrowUp(player *Player) {
+func (p *PromptBar) arrowUp(player *Client) {
 	p.clearPromptBar(player)
 	p.rollback++
 	log.Debug(fmt.Sprintf("Len %d , Rollback %d", len(p.commandHistory), p.rollback))
@@ -333,7 +333,7 @@ func (p *PromptBar) arrowUp(player *Player) {
 }
 
 // Travel forwards through the history of commands
-func (p *PromptBar) arrowDown(player *Player) {
+func (p *PromptBar) arrowDown(player *Client) {
 	p.clearPromptBar(player)
 	p.rollback--
 
@@ -356,7 +356,7 @@ func (p *PromptBar) arrowDown(player *Player) {
 
 // This function sends an event to s.Events channel.
 // GOD thread will handle those events.
-func (p *PromptBar) enterKey(s *Server, player *Player) {
+func (p *PromptBar) enterKey(s *Server, player *Client) {
 	p.clearPromptBar(player)
 	player.conn.Write(ansi.CursorHide)
 
@@ -395,7 +395,7 @@ func InsertInSlice(original []string, position int, value string) []string {
 	return target
 }
 
-func (p *PromptBar) clearPromptBar(player *Player) {
+func (p *PromptBar) clearPromptBar(player *Client) {
 	player.conn.Write(ansi.EraseLine)
 	player.conn.Write(ansi.Goto(uint16(player.h)-1, 1))
 }

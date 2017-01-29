@@ -5,14 +5,21 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/droslean/thyraNew/area"
+	"github.com/gothyra/thyra/pkg/game"
+	"github.com/gothyra/toml"
+
 	"golang.org/x/crypto/ssh"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type ID uint16
@@ -29,22 +36,41 @@ type Server struct {
 	idPool        <-chan ID
 	logf          func(format string, args ...interface{})
 	privateKey    ssh.Signer
-	newPlayers    chan *Player
-	onlineClients map[string]*Player
+	newPlayers    chan *Client
+	onlineClients map[string]*Client
+	Players       map[string]area.Player
 	Events        chan Event
 	lines         int
+	Areas         map[string]area.Area
+	staticDir     string
 }
 
 func NewServer(db *Database, port int, idPool <-chan ID) (*Server, error) {
+	// Environment variables
+	staticDir := os.Getenv("THYRA_STATIC")
+	if len(staticDir) == 0 {
+		pwd, _ := os.Getwd()
+		staticDir = filepath.Join(pwd, "static")
+		log.Warn("Set THYRA_STATIC if you wish to configure the directory for static content")
+	}
+	log.Info(fmt.Sprintf("Using %s for static content", staticDir))
+
 	s := &Server{
 		port:          port,
 		idPool:        idPool,
-		logf:          log.New(os.Stdout, "server: ", 0).Printf,
-		onlineClients: make(map[string]*Player),
+		onlineClients: make(map[string]*Client),
 		Events:        make(chan Event),
 		lines:         1,
+		Areas:         make(map[string]area.Area),
+		staticDir:     staticDir,
+		Players:       make(map[string]area.Player),
 		//newPlayers: make(chan *Player),
 	}
+
+	if err := s.loadAreas(); err != nil {
+		os.Exit(1)
+	}
+
 	if err := db.GetPrivateKey(s); err != nil {
 		return nil, err
 	}
@@ -65,13 +91,13 @@ func StartServer(s *Server) {
 	// bind to provided port
 	server, err := net.ListenTCP("tcp4", &net.TCPAddr{Port: s.port})
 	if err != nil {
-		log.Fatal(err)
+		log.Info(fmt.Sprintf("%v", err))
 	}
 	// accept all tcp
 	for {
 		tcpConn, err := server.AcceptTCP()
 		if err != nil {
-			s.logf("accept error (%s)", err)
+			log.Warn(fmt.Sprintf("accept error (%s)", err))
 			continue
 		}
 		go s.handle(tcpConn)
@@ -150,20 +176,28 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 			hash = ip
 		}
 	}
-	log.Printf("Creating new player %q: id: %d, hash: %s", name, id, hash)
-	p := NewPlayer(id, sshName, name, hash, conn)
-	s.clientLoggedIn(p.Name, *p)
+	log.Info(fmt.Sprintf("Creating new client %q: id: %d, hash: %s", name, id, hash))
+
+	exists, err := s.loadPlayer(name)
+	if !exists {
+		log.Info(fmt.Sprintf("Player %s doesn't exists", name))
+		sshConn.Close()
+	}
+
+	player, _ := s.GetPlayerByNick(name)
+	p := NewClient(id, sshName, name, hash, conn, &player)
+	s.clientLoggedIn(p.Name, p)
 
 	// Start threads
 	// Prompt Bar is in beta mode. In futere in this place there will be the GOD thread.
 	go God(s)
-	go p.receiveActions(s, p)
+	go p.receiveActions(s)
 	go p.resizeWatch()
 
 	go func() {
 		for r := range chanReqs {
 			ok := false
-			log.Printf("[%s] response: %#v", r.Type, r)
+			log.Warn(fmt.Sprintf("[%s] response: %#v", r.Type, r))
 			switch r.Type {
 			case "shell":
 				// We don't accept any commands (Payload),
@@ -181,7 +215,7 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 				p.resizes <- parseDims(r.Payload)
 				continue // no response
 			}
-			log.Printf("replying ok to a %q request", r.Type)
+			log.Info(fmt.Sprintf("replying ok to a %q request", r.Type))
 			r.Reply(ok, nil)
 		}
 	}()
@@ -214,11 +248,11 @@ func fingerprintKey(k ssh.PublicKey) string {
 }
 
 // OnlineClients returns all the online players in the server.
-func (s *Server) OnlineClients() []Player {
+func (s *Server) OnlineClients() []Client {
 	s.RLock()
 	defer s.RUnlock()
 
-	online := []Player{}
+	online := []Client{}
 	for _, onlineClient := range s.onlineClients {
 		online = append(online, *onlineClient)
 	}
@@ -228,9 +262,9 @@ func (s *Server) OnlineClients() []Player {
 
 // clientLoggedIn stores the logged in player into an internal cache that holds
 // all online players.
-func (s *Server) clientLoggedIn(name string, client Player) {
+func (s *Server) clientLoggedIn(name string, client *Client) {
 	s.Lock()
-	s.onlineClients[name] = &client
+	s.onlineClients[name] = client
 	s.Unlock()
 }
 
@@ -240,4 +274,186 @@ func (s *Server) clientLoggedOut(name string) {
 	s.Lock()
 	delete(s.onlineClients, name)
 	s.Unlock()
+}
+
+// loadAreas loads all the areas from the static directory into memory.
+// TODO: Change the way we load rooms into memory. We should load rooms
+// where online players are. We should also change our schema to hold
+// rooms in separate files.
+func (s *Server) loadAreas() error {
+	log.Info("Loading areas ...")
+	areaWalker := func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+
+		fileContent, fileIoErr := ioutil.ReadFile(path)
+		if fileIoErr != nil {
+			log.Info(fmt.Sprintf("%s could not be loaded: %v", path, fileIoErr))
+			return fileIoErr
+		}
+
+		area := area.Area{}
+		if _, err := toml.Decode(string(fileContent), &area); err != nil {
+			log.Info(fmt.Sprintf("%s could not be unmarshaled: %v", path, err))
+			return err
+		}
+
+		log.Info(fmt.Sprintf("Loaded area %q", area.Name))
+		// TODO: Lock
+		s.Areas[area.Name] = area
+
+		return nil
+	}
+
+	return filepath.Walk(s.staticDir+"/areas/", areaWalker)
+}
+
+// OnlineClientsGetByRoom returns all the online players in the given room.
+func (s *Server) OnlineClientsGetByRoom(area, room string) []Client {
+	clients := s.OnlineClients()
+	var clientsSameRoom []Client
+
+	for i := range clients {
+		c := clients[i]
+		if area == c.Player.Area && room == c.Player.Room {
+			clientsSameRoom = append(clientsSameRoom, c)
+		}
+	}
+
+	return clientsSameRoom
+}
+
+// CreateRoom creates a 2-d array of cubes that essentially consists of a room.
+func (s *Server) CreateRoom(a, room string) [][]area.Cube {
+
+	biggestx := 0
+	biggesty := 0
+	biggest := 0
+
+	roomCubes := []area.Cube{}
+	// TODO: Remove Areas from Server
+	for i := range s.Areas[a].Rooms {
+		if s.Areas[a].Rooms[i].Name == room {
+			roomCubes = s.Areas[a].Rooms[i].Cubes
+			break
+		}
+	}
+
+	for nick := range roomCubes {
+		posx, _ := strconv.Atoi(roomCubes[nick].POSX)
+		if posx > biggestx {
+			biggestx = posx
+		}
+
+		posy, _ := strconv.Atoi(roomCubes[nick].POSY)
+		if posy > biggesty {
+			biggesty = posy
+		}
+
+	}
+
+	if biggestx < biggesty {
+		biggest = biggesty
+	} else {
+		biggest = biggestx
+	}
+
+	if biggest < 5 {
+		biggest = biggest + 5
+	}
+	biggest++
+
+	maparray := make([][]area.Cube, biggest)
+	for i := range maparray {
+		maparray[i] = make([]area.Cube, biggest)
+	}
+
+	for z := range roomCubes {
+		posx, _ := strconv.Atoi(roomCubes[z].POSX)
+		posy, _ := strconv.Atoi(roomCubes[z].POSY)
+		if roomCubes[z].ID != "" {
+			maparray[posx][posy] = roomCubes[z]
+		}
+	}
+
+	return maparray
+}
+
+// loadPlayer loads the player into memory.
+func (s *Server) loadPlayer(playerName string) (bool, error) {
+	ok, playerFileName := s.getPlayerFileName(playerName)
+	if !ok {
+		return false, nil
+	}
+	if _, err := os.Stat(playerFileName); err != nil {
+		return false, nil
+	}
+
+	fileContent, fileIoErr := ioutil.ReadFile(playerFileName)
+	if fileIoErr != nil {
+		log.Info(fmt.Sprintf("%s could not be loaded: %v", playerFileName, fileIoErr))
+		return true, fileIoErr
+	}
+
+	player := area.Player{}
+	if _, err := toml.Decode(string(fileContent), &player); err != nil {
+		log.Info(fmt.Sprintf("%s could not be unmarshaled: %v", playerFileName, err))
+		return true, err
+	}
+
+	log.Info(fmt.Sprintf("Loaded player %q", player.Nickname))
+	// TODO: Lock
+	s.Players[player.Nickname] = player
+
+	return true, nil
+}
+
+func (s *Server) getPlayerFileName(playerName string) (bool, string) {
+	if !IsValidUsername(playerName) {
+		return false, ""
+	}
+	return true, s.staticDir + "/player/" + playerName + ".toml"
+}
+
+// IsValidUsername checks if the given player name is a valid one.
+func IsValidUsername(playerName string) bool {
+	r, err := regexp.Compile(`^[a-zA-Z0-9_-]{1,40}$`)
+	if err != nil {
+		return false
+	}
+	if !r.MatchString(playerName) {
+		return false
+	}
+	return true
+}
+
+// CreatePlayer creates a player with the given nickname.
+func (s *Server) CreatePlayer(nick string) {
+	ok, playerFileName := s.getPlayerFileName(nick)
+	if !ok {
+		return
+	}
+	if _, err := os.Stat(playerFileName); err == nil {
+		log.Info(fmt.Sprintf("Player %q does already exist.\n", nick))
+		if _, err := s.loadPlayer(nick); err != nil {
+			log.Info(fmt.Sprintf("Player %q cannot be loaded: %v", nick, err))
+		}
+		return
+	}
+	player := area.Player{
+		Nickname: nick,
+		PC:       *game.NewPC(),
+		Area:     "City",
+		Room:     "Inn",
+		Position: "1",
+	}
+	// TODO: Lock
+	s.Players[player.Nickname] = player
+}
+
+// GetPlayerByNick returns the player by nickname.
+func (s *Server) GetPlayerByNick(nickname string) (area.Player, bool) {
+	player, ok := s.Players[nickname]
+	return player, ok
 }

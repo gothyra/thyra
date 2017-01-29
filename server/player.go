@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/droslean/thyraNew/area"
 	"github.com/jpillora/ansi"
 	"golang.org/x/crypto/ssh"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -14,7 +15,7 @@ type resize struct {
 }
 
 // A Player represents a live TCP connection from a client
-type Player struct {
+type Client struct {
 	id                   ID     // identification
 	hash                 string //hash of public key
 	SSHName, Name, cname string
@@ -25,14 +26,15 @@ type Player struct {
 	resizes              chan resize
 	conn                 *ansi.Ansi
 	promptBar            *PromptBar
+	Player               *area.Player
 }
 
 // NewPlayer returns an initialized Player.
-func NewPlayer(id ID, sshName, name, hash string, conn ssh.Channel) *Player {
+func NewClient(id ID, sshName, name, hash string, conn ssh.Channel, player *area.Player) *Client {
 	if hash == "" {
 		hash = name //finally, hash fallsback to name
 	}
-	p := &Player{
+	p := &Client{
 		id:        id,
 		hash:      hash,
 		SSHName:   sshName,
@@ -41,6 +43,7 @@ func NewPlayer(id ID, sshName, name, hash string, conn ssh.Channel) *Player {
 		resizes:   make(chan resize),
 		conn:      ansi.Wrap(conn),
 		promptBar: NewPromptBar(),
+		Player:    player,
 	}
 	return p
 }
@@ -49,7 +52,7 @@ var resizeTmpl = string(ansi.Goto(2, 5)) +
 	string(ansi.Set(ansi.Blue)) +
 	"Please resize your terminal to %dx%d (+%dx+%d)"
 
-func (p *Player) resetScreen() {
+func (p *Client) resetScreen() {
 	p.screenRunes = make([][]rune, p.w)
 	p.screenColors = make([][]ID, p.w)
 	for w := 0; w < p.w; w++ {
@@ -62,7 +65,7 @@ func (p *Player) resetScreen() {
 	}
 }
 
-func (p *Player) resizeWatch() {
+func (p *Client) resizeWatch() {
 	for r := range p.resizes {
 
 		p.w = int(r.width)
@@ -86,10 +89,10 @@ func (p *Player) resizeWatch() {
 	}
 }
 
-func (p *Player) receiveActions(s *Server, player *Player) {
+func (p *Client) receiveActions(s *Server) {
 
 	// Start Prompt Bar
-	go p.promptBar.promptBar(s, player)
+	go p.promptBar.promptBar(s, p)
 
 	buff := make([]byte, 3)
 
@@ -110,15 +113,16 @@ func (p *Player) receiveActions(s *Server, player *Player) {
 			continue
 		}
 
+		// Send byte array to Prompt bar channel
 		p.promptBar.promptChan <- b
 	}
 
 }
 
-func (p *Player) writeString(message string) {
+func (p *Client) writeString(message string) {
 	p.conn.Write([]byte(message))
 }
 
-func (p *Player) writeGoto(x, y int) {
+func (p *Client) writeGoto(x, y int) {
 	p.conn.Write(ansi.Goto(uint16(x), uint16(y)))
 }

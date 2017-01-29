@@ -8,7 +8,7 @@ type Screen struct {
 	screenRunes [][]rune
 }
 
-func (scr *Screen) init(p *Player) {
+func (scr *Screen) init(p *Client) {
 
 	scr.screenRunes = make([][]rune, p.w)
 	for w := 0; w < p.w; w++ {
