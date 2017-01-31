@@ -44,6 +44,7 @@ func NewScreen(width, height int) *Screen {
 
 }
 
+// TODO : check terminal sizes
 func (scr *Screen) updateScreen(frame string, bufToUpdate bytes.Buffer, height, width int) {
 
 	switch frame {

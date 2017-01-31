@@ -117,10 +117,11 @@ func (c *Client) resizeWatch() {
 		log.Info(fmt.Sprintf("Width :%d  Height:%d", c.w, c.h))
 
 		// fits?
-		if c.w >= 10 && c.h >= 10 {
+		if c.w >= 30 && c.h >= 30 {
 			c.conn.EraseScreen()
 			// send updates!
 			c.ready = true
+			c.screen = NewScreen(c.w, c.h)
 		} else {
 			// doesnt fit
 			c.conn.EraseScreen()
@@ -130,6 +131,6 @@ func (c *Client) resizeWatch() {
 			c.screen.screenRunes = nil
 			c.ready = false
 		}
-		c.screen = NewScreen(c.w, c.h)
+
 	}
 }

@@ -25,31 +25,49 @@ func God(s *Server) {
 		}
 	}
 
+	msg := ""
+
 	for {
 		select {
 
 		case ev := <-s.Events:
+			log.Debug(fmt.Sprintf("Event type : %s", ev.EventType))
 			cl := ev.Client
-			//c := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
-			c := s.OnlineClients()
+			c := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
+			for i := range c {
+				log.Debug(fmt.Sprintf("Clients in room %#v", c[i].Player))
+			}
+
 			switch ev.EventType {
 			case "e", "east":
-				doMove(s, *cl, roomsMap, 0)
-				godPrintRoom(s, cl, c, roomsMap, "", "")
+				msg = doMove(s, *cl, roomsMap, 0)
+
 			case "w", "west":
-				doMove(s, *cl, roomsMap, 1)
-				godPrintRoom(s, cl, c, roomsMap, "", "")
+				msg = doMove(s, *cl, roomsMap, 1)
+
 			case "n", "north":
-				doMove(s, *cl, roomsMap, 2)
-				godPrintRoom(s, cl, c, roomsMap, "", "")
+				msg = doMove(s, *cl, roomsMap, 2)
+
 			case "s", "south":
-				msg := doMove(s, *cl, roomsMap, 3)
-				godPrintRoom(s, cl, c, roomsMap, msg, "")
+				msg = doMove(s, *cl, roomsMap, 3)
 
 			case "quit":
 				ev.Client.conn.Write(ansi.EraseScreen)
 				ev.Client.conn.Close()
 				s.clientLoggedOut(ev.Client.Name)
+			}
+
+			if msg == "door" {
+				log.Info("Enter door")
+				currentroom := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
+				godPrintRoom(s, cl, currentroom, roomsMap, "", fmt.Sprintf("%s enter the room.", cl.Player.Nickname))
+
+				previousroom := s.OnlineClientsGetByRoom(cl.Player.PreviousArea, cl.Player.PreviousRoom)
+				if previousroom != nil {
+					godPrintRoom(s, cl, previousroom, roomsMap, "", fmt.Sprintf("%s left the room.", cl.Player.Nickname))
+				}
+			} else {
+				godPrintRoom(s, cl, c, roomsMap, "", "")
 			}
 
 			log.Info(fmt.Sprintf("%s : %s", ev.Client.Name, ev.EventType))
@@ -102,7 +120,7 @@ func godPrintRoom(
 		// Print map.
 		bufmap := area.PrintMap(p, posToCurr, mapArray)
 		c.screen.updateScreen("map", bufmap, c.h, c.w)
-		drawScreen(c)
+		DrawScreen(c)
 		// Insert to screen in exitsCanvas[][]
 		// Print exits
 		//bufexits := area.PrintExits(area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position))
@@ -143,19 +161,13 @@ func copyMapWithNewPos(m map[string]bool, currentPos string) map[string]bool {
 }
 
 func doMove(s *Server, c Client, roomsMap map[string]map[string][][]area.Cube, direction int) string {
-	event := Event{
-		Client: &c,
-	}
 
 	mapArray := roomsMap[c.Player.Area][c.Player.Room]
 	posarray := area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position)
 
 	newPosType := posarray[direction][3]
-	if newPosType == "door" {
-		event.EventType = "enter_door"
-		s.Events <- event
-	}
 
+	log.Debug("After door")
 	newarea := posarray[direction][0]
 	newroom := posarray[direction][2]
 	newpos, _ := strconv.Atoi(posarray[direction][1])
@@ -170,6 +182,10 @@ func doMove(s *Server, c Client, roomsMap map[string]map[string][][]area.Cube, d
 		return ""
 	}
 
+	log.Debug(fmt.Sprintf("Direction type : %s ", newPosType))
+	if newPosType == "door" {
+		return "door"
+	}
 	return info
 
 }
@@ -193,7 +209,7 @@ func isCubeAvailable(s *Server, client Client, area string, room string, cube in
 	return true, ""
 }
 
-func drawScreen(c Client) {
+func DrawScreen(c Client) {
 
 	c.conn.Write(ansi.CursorHide)
 	c.conn.Write(ansi.Goto(0, 0))
