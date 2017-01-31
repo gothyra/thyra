@@ -12,7 +12,7 @@ import (
 )
 
 type Event struct {
-	Player    *Client
+	Client    *Client
 	EventType string
 }
 
@@ -29,30 +29,30 @@ func God(s *Server) {
 		select {
 
 		case ev := <-s.Events:
-			cl := ev.Player
+			cl := ev.Client
 			//c := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
 			c := s.OnlineClients()
 			switch ev.EventType {
 			case "e", "east":
 				doMove(s, *cl, roomsMap, 0)
-				godPrintRoom(s, *cl, c, roomsMap, "", "")
+				godPrintRoom(s, cl, c, roomsMap, "", "")
 			case "w", "west":
 				doMove(s, *cl, roomsMap, 1)
-				godPrintRoom(s, *cl, c, roomsMap, "", "")
+				godPrintRoom(s, cl, c, roomsMap, "", "")
 			case "n", "north":
 				doMove(s, *cl, roomsMap, 2)
-				godPrintRoom(s, *cl, c, roomsMap, "", "")
+				godPrintRoom(s, cl, c, roomsMap, "", "")
 			case "s", "south":
 				msg := doMove(s, *cl, roomsMap, 3)
-				godPrintRoom(s, *cl, c, roomsMap, msg, "")
+				godPrintRoom(s, cl, c, roomsMap, msg, "")
 
 			case "quit":
-				ev.Player.conn.Write(ansi.EraseScreen)
-				ev.Player.conn.Close()
-				s.clientLoggedOut(ev.Player.Name)
+				ev.Client.conn.Write(ansi.EraseScreen)
+				ev.Client.conn.Close()
+				s.clientLoggedOut(ev.Client.Name)
 			}
 
-			log.Info(fmt.Sprintf("%s : %s", ev.Player.Name, ev.EventType))
+			log.Info(fmt.Sprintf("%s : %s", ev.Client.Name, ev.EventType))
 
 			/*for _, onlineClient := range s.onlineClients {
 				if s.lines == onlineClient.h-2 {
@@ -72,7 +72,7 @@ func God(s *Server) {
 
 func godPrintRoom(
 	s *Server,
-	cl Client,
+	cl *Client,
 	clients []Client,
 	roomsMap map[string]map[string][][]area.Cube,
 	msg string,
@@ -86,6 +86,7 @@ func godPrintRoom(
 
 	mapArray := roomsMap[clients[0].Player.Area][clients[0].Player.Room]
 
+	// TODO : get only clients in the same room.
 	for i := range clients {
 		c := clients[i]
 		positionToCurrent[c.Player.Position] = false
@@ -96,25 +97,36 @@ func godPrintRoom(
 		p := c.Player
 
 		posToCurr := copyMapWithNewPos(positionToCurrent, c.Player.Position)
-		bufmap := area.PrintMap(p, posToCurr, mapArray)
 
-		counter := 20
-		buf := bytes.NewBuffer(bufmap.Bytes())
+		// Insert to screen in mapCanvas[][]
+		// Print map.
+		bufmap := area.PrintMap(p, posToCurr, mapArray)
+		c.screen.updateScreen("map", bufmap, c.h, c.w)
+		drawScreen(c)
+		// Insert to screen in exitsCanvas[][]
+		// Print exits
+		//bufexits := area.PrintExits(area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position))
+		//	c.writeGoto(c.h-4, c.w-40)
+		//c.writeString(bufexits.String())
+
+		// Insert to screen in introCanvas[][]
+		// Print Intro
+		/*buffintro := area.PrintIntro(s.Areas[c.Player.Area].Rooms[c.Player.Room].Description)
+		counter2 := 20
+		buf2 := bytes.NewBuffer(buffintro.Bytes())
 		for {
-			line, err := buf.ReadString('\n')
+			introLine, err := buf2.ReadString('\n')
 			if err != nil {
 				// TODO: Log errors other than io.EOF
 				// log.Info("world buffer read error: %v", err)
 				break
 			}
-
-			c.writeGoto(c.h-counter, c.w-40)
-			c.writeString(line)
-			counter--
-		}
+			//	c.writeGoto(c.h-counter2, c.w-50)
+			//	c.writeString(introLine)
+			//	counter--
+		}*/
 
 		c.writeGoto(c.h-1, c.promptBar.position+1)
-
 	}
 
 }
@@ -132,7 +144,7 @@ func copyMapWithNewPos(m map[string]bool, currentPos string) map[string]bool {
 
 func doMove(s *Server, c Client, roomsMap map[string]map[string][][]area.Cube, direction int) string {
 	event := Event{
-		Player: &c,
+		Client: &c,
 	}
 
 	mapArray := roomsMap[c.Player.Area][c.Player.Room]
@@ -178,6 +190,26 @@ func isCubeAvailable(s *Server, client Client, area string, room string, cube in
 			return false, c.Player.Nickname + " is blocking the way"
 		}
 	}
-
 	return true, ""
+}
+
+func drawScreen(c Client) {
+
+	c.conn.Write(ansi.CursorHide)
+	c.conn.Write(ansi.Goto(0, 0))
+	c.writeString(convertRunesToString(c.screen.screenRunes))
+	c.conn.Write(ansi.CursorShow)
+}
+
+func convertRunesToString(runes [][]rune) string {
+
+	buf := bytes.NewBuffer(nil)
+	for w := 0; w < len(runes); w++ {
+		for h := 0; h < len(runes[w]); h++ {
+			buf.WriteRune(runes[w][h])
+		}
+		buf.WriteRune('\r')
+	}
+
+	return buf.String()
 }

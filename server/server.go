@@ -93,6 +93,7 @@ func StartServer(s *Server) {
 	if err != nil {
 		log.Info(fmt.Sprintf("%v", err))
 	}
+	go God(s)
 	// accept all tcp
 	for {
 		tcpConn, err := server.AcceptTCP()
@@ -102,6 +103,7 @@ func StartServer(s *Server) {
 		}
 		go s.handle(tcpConn)
 	}
+
 }
 
 func (s *Server) handle(tcpConn *net.TCPConn) {
@@ -188,11 +190,7 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 	p := NewClient(id, sshName, name, hash, conn, &player)
 	s.clientLoggedIn(p.Name, p)
 
-	// Start threads
-	// Prompt Bar is in beta mode. In futere in this place there will be the GOD thread.
-	go God(s)
-	go p.receiveActions(s)
-	go p.resizeWatch()
+	p.prepareClient(s)
 
 	go func() {
 		for r := range chanReqs {
@@ -325,7 +323,7 @@ func (s *Server) OnlineClientsGetByRoom(area, room string) []Client {
 }
 
 // CreateRoom creates a 2-d array of cubes that essentially consists of a room.
-func (s *Server) CreateRoom(a, room string) [][]area.Cube {
+func (s *Server) CreateRoom(areaName, room string) [][]area.Cube {
 
 	biggestx := 0
 	biggesty := 0
@@ -333,9 +331,9 @@ func (s *Server) CreateRoom(a, room string) [][]area.Cube {
 
 	roomCubes := []area.Cube{}
 	// TODO: Remove Areas from Server
-	for i := range s.Areas[a].Rooms {
-		if s.Areas[a].Rooms[i].Name == room {
-			roomCubes = s.Areas[a].Rooms[i].Cubes
+	for i := range s.Areas[areaName].Rooms {
+		if s.Areas[areaName].Rooms[i].Name == room {
+			roomCubes = s.Areas[areaName].Rooms[i].Cubes
 			break
 		}
 	}

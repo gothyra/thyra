@@ -365,7 +365,7 @@ func (p *PromptBar) enterKey(s *Server, player *Client) {
 	player.conn.Write(ansi.CursorShow)
 
 	p.drawPromptBar(player)
-	event := Event{Player: player, EventType: p.getCommandAsString()}
+	event := Event{Client: player, EventType: p.getCommandAsString()}
 	s.Events <- event
 
 	// Clear command array to re-use it again.
