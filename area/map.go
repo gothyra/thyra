@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"strconv"
 
-	"github.com/gothyra/thyra/pkg/game"
+	"github.com/droslean/thyraNew/game"
 )
 
 type Area struct {

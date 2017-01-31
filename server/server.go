@@ -15,7 +15,7 @@ import (
 	"sync"
 
 	"github.com/droslean/thyraNew/area"
-	"github.com/gothyra/thyra/pkg/game"
+	"github.com/droslean/thyraNew/game"
 	"github.com/gothyra/toml"
 
 	"golang.org/x/crypto/ssh"
@@ -122,7 +122,7 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 	config.AddHostKey(s.privateKey)
 	sshConn, chans, globalReqs, err := ssh.NewServerConn(tcpConn, config)
 	if err != nil {
-		s.logf("new connection handshake failed (%s)", err)
+		log.Warn(fmt.Sprintf("new connection handshake failed (%s)", err))
 		return
 	}
 	// global requests must be serviced - discard
@@ -150,7 +150,7 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 	}
 	conn, chanReqs, err := c.Accept()
 	if err != nil {
-		s.logf("could not accept channel (%s)", err)
+		log.Warn(fmt.Sprintf("could not accept channel (%s)", err))
 		sshConn.Close()
 		return
 	}
