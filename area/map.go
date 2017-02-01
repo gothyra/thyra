@@ -2,9 +2,12 @@ package area
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 
 	"github.com/droslean/thyraNew/game"
+	"github.com/jpillora/ansi"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type Area struct {
@@ -173,22 +176,25 @@ func PrintMap(p *Player, online map[string]bool, s [][]Cube) bytes.Buffer {
 	var buffer bytes.Buffer
 
 	for y := 0; y < len(s); y++ {
-
-		buffer.WriteString("|")
-
 		for x := 0; x < len(s); x++ {
 			current, ok := online[s[x][y].ID]
 			switch {
 			case s[x][y].Type == "door":
-				buffer.WriteString("O|")
+				buffer.WriteString(string(ansi.Attribute(398)) + " ")
 			case ok && current:
-				buffer.WriteString("*|")
+				buffer.WriteString(string(ansi.Attribute(198)) + " ")
 			case ok && !current:
-				buffer.WriteString("@|")
+				buffer.WriteString(string(ansi.Attribute(165)) + " ")
 			case s[x][y].ID == "":
-				buffer.WriteString("X|")
+
+				if hasEmptyNeighbours(s, x, y) {
+					buffer.WriteString("  ")
+				} else {
+					buffer.WriteString(string(ansi.Attribute(182)) + " ")
+				}
+
 			default:
-				buffer.WriteString("_|")
+				buffer.WriteString(string(ansi.Attribute(183)) + " ")
 			}
 		}
 		buffer.WriteString("\n")
@@ -202,4 +208,128 @@ func PrintIntro(desc string) bytes.Buffer {
 	var buffer bytes.Buffer
 	buffer.WriteString(desc)
 	return buffer
+}
+
+func hasEmptyNeighbours(array [][]Cube, x, y int) bool {
+
+	//CHECK FOR CORNERS :
+	// DOWN RIGHT CORNER
+	if x == len(array)-1 && y == len(array)-1 {
+		up := y - 1
+		left := x - 1
+		if array[x][up].ID == "" && // UP
+			array[left][y].ID == "" && // LEFT
+			array[left][up].ID == "" { // UP LEFT
+			return true
+		}
+	}
+
+	// DOWN LEFT CORNER
+	if x == 0 && y == len(array)-1 {
+		log.Debug(fmt.Sprintf("CORNER ! : X:%d  Y:%d ", x, y))
+		up := y - 1
+		right := x + 1
+
+		if array[x][up].ID == "" && // UP
+			array[right][up].ID == "" && // UP RIGHT
+			array[right][y].ID == "" { // RIGHT
+			return true
+		}
+	}
+
+	// UP RIGHT CORNER
+	if x == len(array)-1 && y == 0 {
+		down := y + 1
+		left := x - 1
+		if array[x][down].ID == "" && // DOWN
+			array[left][y].ID == "" && // LEFT
+			array[left][down].ID == "" { // DOWN LEFT
+			return true
+		}
+	}
+
+	// UP LEFT CORNER
+	if x == 0 && y == 0 {
+		down := y + 1
+		right := x + 1
+		if array[x][down].ID == "" && // DOWN
+			array[right][y].ID == "" && // RIGHT
+			array[right][down].ID == "" { // DOWN RIGHT
+			return true
+		}
+	}
+
+	//Check Borders
+	// LEFT BORDER
+	if x == 0 && y > 0 && y < len(array)-1 {
+
+		up := y - 1
+		down := y + 1
+		right := x + 1
+		if array[x][up].ID == "" && // UP
+			array[x][down].ID == "" && // DOWN
+			array[right][up].ID == "" && // UP RIGHT
+			array[right][down].ID == "" && // DOWN RIGHT
+			array[right][y].ID == "" { // RIGHT
+			return true
+		}
+	}
+
+	// RIGHT BORDER
+	if x == len(array)-1 && y > 0 && y < len(array)-1 {
+		up := y - 1
+		down := y + 1
+		left := x - 1
+		if array[x][up].ID == "" && // UP
+			array[x][down].ID == "" && // DOWN
+			array[left][up].ID == "" && // UP LEFT
+			array[left][down].ID == "" && // DOWN LEFT
+			array[left][y].ID == "" { // LEFT
+			return true
+		}
+	}
+
+	// UP BORDER
+	if y == 0 && x > 0 && x < len(array)-1 {
+		right := x + 1
+		left := x - 1
+		down := y + 1
+		if array[x][down].ID == "" && // DOWN
+			array[right][y].ID == "" && // RIGHT
+			array[left][y].ID == "" { // LEFT
+			return true
+		}
+	}
+
+	// DOWN BORDER
+	if y == len(array)-1 && x > 0 && x < len(array)-1 {
+		up := y - 1
+		right := x + 1
+		left := x - 1
+		if array[x][up].ID == "" && // UP
+			array[right][y].ID == "" && // RIGHT
+			array[left][y].ID == "" { // LEFT
+			return true
+		}
+	}
+
+	// INSIDE FRAME
+	if x > 0 && x < len(array)-1 && y > 0 && y < len(array)-1 {
+		up := y - 1
+		down := y + 1
+		right := x + 1
+		left := x - 1
+
+		if array[x][up].ID == "" && // UP
+			array[x][down].ID == "" && // DOWN
+			array[right][y].ID == "" && // RIGHT
+			array[left][y].ID == "" && // LEFT
+			array[right][up].ID == "" && // UP RIGHT
+			array[right][down].ID == "" && // DOWN RIGHT
+			array[left][up].ID == "" && // UP LEFT
+			array[left][down].ID == "" { // DOWN LEFT
+			return true
+		}
+	}
+	return false
 }

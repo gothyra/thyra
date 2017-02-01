@@ -24,7 +24,6 @@ type Client struct {
 	resizes              chan resize
 	screen               *Screen
 	conn                 *ansi.Ansi
-	connection           ssh.Channel
 	promptBar            *PromptBar
 	Player               *area.Player
 }
@@ -35,23 +34,22 @@ func NewClient(id ID, sshName, name, hash string, conn ssh.Channel, player *area
 		hash = name //finally, hash fallsback to name
 	}
 	p := &Client{
-		id:         id,
-		hash:       hash,
-		SSHName:    sshName,
-		Name:       name,
-		ready:      false,
-		resizes:    make(chan resize),
-		conn:       ansi.Wrap(conn),
-		connection: conn,
-		promptBar:  NewPromptBar(),
-		Player:     player,
+		id:        id,
+		hash:      hash,
+		SSHName:   sshName,
+		Name:      name,
+		ready:     false,
+		resizes:   make(chan resize),
+		conn:      ansi.Wrap(conn),
+		promptBar: NewPromptBar(),
+		Player:    player,
 	}
 	return p
 }
 
 var resizeTmpl = string(ansi.Goto(2, 5)) +
 	string(ansi.Set(ansi.Blue)) +
-	"Please resize your terminal to %dx%d (+%dx+%d)"
+	"Please resize your terminal to %dx%d (+%dx+%d)" + string(ansi.Set(ansi.Default))
 
 func (c *Client) receiveActions(s *Server) {
 

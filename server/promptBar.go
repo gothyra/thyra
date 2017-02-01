@@ -298,7 +298,7 @@ func (p *PromptBar) convertCommadHistoryToArray(command string) {
 func (p *PromptBar) fillPromptBar(player *Client) string {
 	promptBar := ""
 	for i := 0; i < player.w; i++ {
-		promptBar += "~"
+		promptBar += string(ansi.Attribute(230))
 	}
 	return promptBar
 }

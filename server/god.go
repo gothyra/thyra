@@ -214,7 +214,14 @@ func DrawScreen(c Client) {
 	c.conn.Write(ansi.CursorHide)
 	c.conn.Write(ansi.Goto(0, 0))
 	c.writeString(convertRunesToString(c.screen.screenRunes))
+
+	/*
+		for i := 0; i < 400; i++ {
+			c.writeString(fmt.Sprintf(" %d:", i) + string(ansi.Attribute(i)))
+		}
+	*/
 	c.conn.Write(ansi.CursorShow)
+
 }
 
 func convertRunesToString(runes [][]rune) string {
