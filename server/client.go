@@ -92,8 +92,13 @@ func (c *Client) prepareClient(s *Server) {
 
 	// Start Prompt Bar
 	go c.promptBar.promptBar(s, c)
-	c.screen = NewScreen(c.w, c.h)
 	go c.resizeWatch()
+	//c.conn.Write(ansi.CursorHide)
+	/*for {
+
+		c.writeGoto(0, 0)
+		c.writeString(readFromFile())
+	}*/
 
 }
 
@@ -112,7 +117,7 @@ func (c *Client) resizeWatch() {
 
 		c.w = int(r.width)
 		c.h = int(r.height)
-		log.Info(fmt.Sprintf("Width :%d  Height:%d", c.w, c.h))
+		log.Info(fmt.Sprintf("%s: Width :%d  Height:%d", c.Name, c.w, c.h))
 
 		// fits?
 		if c.w >= 30 && c.h >= 30 {

@@ -2,12 +2,10 @@ package area
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 
 	"github.com/droslean/thyraNew/game"
 	"github.com/jpillora/ansi"
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type Area struct {
@@ -47,8 +45,10 @@ type Exit struct {
 	ToCubeID string `toml:"tocubeid"`
 }
 
+// Find Available Movement
 func FindExits(s [][]Cube, area, room, pos string) [][]string {
-	//TODO : Randomize door exit
+	// TODO : Randomize door exit
+	// TODO : ADD  NE , NW , SE , SW
 
 	ctype := "cube"
 	exitarr := [][]string{}
@@ -70,7 +70,6 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 	for y := 0; y < len(s); y++ {
 		for x := 0; x < len(s); x++ {
 			if s[x][y].ID == pos {
-
 				if x < len(s)-1 {
 					east_id, _ = strconv.Atoi(s[x+1][y].ID)
 				}
@@ -78,16 +77,13 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 					west_id, _ = strconv.Atoi(s[x-1][y].ID)
 				}
 				if y > 0 {
-
 					north_id, _ = strconv.Atoi(s[x][y-1].ID)
 				}
 				if y < len(s)-1 {
 					south_id, _ = strconv.Atoi(s[x][y+1].ID)
-
 				}
 
 				if east_id > 0 {
-
 					if s[x+1][y].Type == "door" {
 						exitarr[0][0] = s[x+1][y].Exits[0].ToArea
 						exitarr[0][1] = s[x+1][y].Exits[0].ToCubeID
@@ -95,25 +91,21 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 						exitarr[0][3] = "door"
 					} else {
 						exitarr[0][1] = s[x+1][y].ID //EAST
-
 					}
 				}
 
 				if west_id > 0 {
-
 					if s[x-1][y].Type == "door" {
 						exitarr[1][0] = s[x-1][y].Exits[0].ToArea
 						exitarr[1][1] = s[x-1][y].Exits[0].ToCubeID
 						exitarr[1][2] = s[x-1][y].Exits[0].ToRoom
 						exitarr[1][3] = "door"
 					} else {
-
 						exitarr[1][1] = s[x-1][y].ID //WEST
 					}
 				}
 
 				if north_id > 0 {
-
 					if s[x][y-1].Type == "door" {
 						exitarr[2][0] = s[x][y-1].Exits[0].ToArea
 						exitarr[2][1] = s[x][y-1].Exits[0].ToCubeID
@@ -125,20 +117,16 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 				}
 
 				if south_id > 0 {
-
 					if s[x][y+1].Type == "door" {
 						exitarr[3][0] = s[x][y+1].Exits[0].ToArea
 						exitarr[3][1] = s[x][y+1].Exits[0].ToCubeID
 						exitarr[3][2] = s[x][y+1].Exits[0].ToRoom
 						exitarr[3][3] = "door"
 					} else {
-
 						exitarr[3][1] = s[x][y+1].ID //SOUTH
 					}
-
 				}
 			}
-
 		}
 	}
 
@@ -150,10 +138,11 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 	return exitarr
 }
 
-func PrintExits(exit_array [][]string) bytes.Buffer { //Print exits,From returned [5]string findExits
+// Print Available Movement
+func PrintExits(exit_array [][]string) bytes.Buffer {
 	var buffer bytes.Buffer
 
-	buffer.WriteString("Exits  : [ ")
+	buffer.WriteString("Movement: [ ")
 
 	if exit_array[0][1] != "0" {
 		buffer.WriteString("East ")
@@ -162,16 +151,20 @@ func PrintExits(exit_array [][]string) bytes.Buffer { //Print exits,From returne
 	if exit_array[1][1] != "0" {
 		buffer.WriteString("West ")
 	}
+
 	if exit_array[2][1] != "0" {
 		buffer.WriteString("North ")
 	}
+
 	if exit_array[3][1] != "0" {
 		buffer.WriteString("South ")
 	}
+
 	buffer.WriteString("]\n")
 	return buffer
 }
 
+// Generate Map
 func PrintMap(p *Player, online map[string]bool, s [][]Cube) bytes.Buffer {
 	var buffer bytes.Buffer
 
@@ -180,21 +173,19 @@ func PrintMap(p *Player, online map[string]bool, s [][]Cube) bytes.Buffer {
 			current, ok := online[s[x][y].ID]
 			switch {
 			case s[x][y].Type == "door":
-				buffer.WriteString(string(ansi.Attribute(398)) + " ")
+				buffer.WriteString(string(ansi.Attribute(398)))
 			case ok && current:
-				buffer.WriteString(string(ansi.Attribute(198)) + " ")
+				buffer.WriteString(string(ansi.Attribute(198)))
 			case ok && !current:
-				buffer.WriteString(string(ansi.Attribute(165)) + " ")
+				buffer.WriteString(string(ansi.Attribute(165)))
 			case s[x][y].ID == "":
-
 				if hasEmptyNeighbours(s, x, y) {
-					buffer.WriteString("  ")
+					buffer.WriteString("")
 				} else {
-					buffer.WriteString(string(ansi.Attribute(182)) + " ")
+					buffer.WriteString(string(ansi.Attribute(182)))
 				}
-
 			default:
-				buffer.WriteString(string(ansi.Attribute(183)) + " ")
+				buffer.WriteString(string(ansi.Attribute(183)))
 			}
 		}
 		buffer.WriteString("\n")
@@ -203,17 +194,19 @@ func PrintMap(p *Player, online map[string]bool, s [][]Cube) bytes.Buffer {
 	return buffer
 }
 
-// Print to intro tis area
-func PrintIntro(desc string) bytes.Buffer {
+// Print Name and Description of a Room
+func PrintIntro(room Room) bytes.Buffer {
 	var buffer bytes.Buffer
-	buffer.WriteString(desc)
+	buffer.WriteString("| " + room.Name + " |\n\n")
+	buffer.WriteString(room.Description)
 	return buffer
 }
 
 func hasEmptyNeighbours(array [][]Cube, x, y int) bool {
 
-	//CHECK FOR CORNERS :
-	// DOWN RIGHT CORNER
+	// Check for corners
+
+	// Down Right corner
 	if x == len(array)-1 && y == len(array)-1 {
 		up := y - 1
 		left := x - 1
@@ -224,9 +217,8 @@ func hasEmptyNeighbours(array [][]Cube, x, y int) bool {
 		}
 	}
 
-	// DOWN LEFT CORNER
+	// Down left Corner
 	if x == 0 && y == len(array)-1 {
-		log.Debug(fmt.Sprintf("CORNER ! : X:%d  Y:%d ", x, y))
 		up := y - 1
 		right := x + 1
 
@@ -237,7 +229,7 @@ func hasEmptyNeighbours(array [][]Cube, x, y int) bool {
 		}
 	}
 
-	// UP RIGHT CORNER
+	// Up Right Corner
 	if x == len(array)-1 && y == 0 {
 		down := y + 1
 		left := x - 1
@@ -248,7 +240,7 @@ func hasEmptyNeighbours(array [][]Cube, x, y int) bool {
 		}
 	}
 
-	// UP LEFT CORNER
+	// Up left Corner
 	if x == 0 && y == 0 {
 		down := y + 1
 		right := x + 1
@@ -259,8 +251,9 @@ func hasEmptyNeighbours(array [][]Cube, x, y int) bool {
 		}
 	}
 
-	//Check Borders
-	// LEFT BORDER
+	// Check Borders
+
+	// Left Side
 	if x == 0 && y > 0 && y < len(array)-1 {
 
 		up := y - 1
@@ -275,7 +268,7 @@ func hasEmptyNeighbours(array [][]Cube, x, y int) bool {
 		}
 	}
 
-	// RIGHT BORDER
+	// Right Side
 	if x == len(array)-1 && y > 0 && y < len(array)-1 {
 		up := y - 1
 		down := y + 1
@@ -289,7 +282,7 @@ func hasEmptyNeighbours(array [][]Cube, x, y int) bool {
 		}
 	}
 
-	// UP BORDER
+	// Up Side
 	if y == 0 && x > 0 && x < len(array)-1 {
 		right := x + 1
 		left := x - 1
@@ -301,7 +294,7 @@ func hasEmptyNeighbours(array [][]Cube, x, y int) bool {
 		}
 	}
 
-	// DOWN BORDER
+	// Down Side
 	if y == len(array)-1 && x > 0 && x < len(array)-1 {
 		up := y - 1
 		right := x + 1
@@ -313,7 +306,7 @@ func hasEmptyNeighbours(array [][]Cube, x, y int) bool {
 		}
 	}
 
-	// INSIDE FRAME
+	// Inner Frame
 	if x > 0 && x < len(array)-1 && y > 0 && y < len(array)-1 {
 		up := y - 1
 		down := y + 1

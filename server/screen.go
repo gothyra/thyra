@@ -8,68 +8,107 @@ import (
 )
 
 type Screen struct {
-	width        int
-	height       int
-	exitCanvas   [][]rune
-	mapCanvas    [][]rune
-	introCanvas  [][]rune
-	screenRunes  [][]rune
-	screenColors [][]ID // the player's view of the screen
+	width          int
+	height         int
+	exitCanvas     []rune
+	messagesCanvas []rune
+	mapCanvas      [][]rune
+	introCanvas    [][]rune
+	screenRunes    [][]rune
+	screenColors   [][]ID // the player's view of the screen
 }
 
+// Initialize new Screen
 func NewScreen(width, height int) *Screen {
-	log.Info(fmt.Sprintf("SCREEN : Width :%d  Height:%d", width, height))
+	log.Debug(fmt.Sprintf("NewScreen init : Width :%d  Height:%d", width, height))
 
-	screenRunes := make([][]rune, width)
-	screenColors := make([][]ID, width)
-	for w := 0; w < width; w++ {
-		screenRunes[w] = make([]rune, height)
-		screenColors[w] = make([]ID, height)
+	screenRunes := make([][]rune, height)
+	screenColors := make([][]ID, height)
+	for h := 0; h < height-3; h++ {
 
-		for h := 0; h < height; h++ {
-			screenRunes[w][h] = ' '
-			screenColors[w][h] = ID(255)
+		screenRunes[h] = make([]rune, width)
+		screenColors[h] = make([]ID, width)
+
+		for w := 0; w < width; w++ {
+
+			screenRunes[h][w] = ' '
+			screenColors[h][w] = ID(255)
 		}
 	}
 
 	return &Screen{
-		width:        width,
-		height:       height,
-		exitCanvas:   make([][]rune, 0),
-		mapCanvas:    make([][]rune, 0),
-		introCanvas:  make([][]rune, 0),
-		screenRunes:  screenRunes,
-		screenColors: screenColors,
+		width:          width,
+		height:         height,
+		exitCanvas:     make([]rune, 0),
+		messagesCanvas: make([]rune, 0),
+		mapCanvas:      make([][]rune, 0),
+		introCanvas:    make([][]rune, 0),
+		screenRunes:    screenRunes,
+		screenColors:   screenColors,
 	}
 
 }
 
-// TODO : check terminal sizes
-func (scr *Screen) updateScreen(frame string, bufToUpdate bytes.Buffer, height, width int) {
+// TODO : Check for offsets. Add limitation to all Canvas
+func (scr *Screen) updateScreen(frame string, bufToUpdate bytes.Buffer) {
+	runes := make([]rune, 0)
+	buf := bytes.NewBuffer(bufToUpdate.Bytes())
 
 	switch frame {
 	case "map":
-		height = 1
-		width = 1
-		buf := bytes.NewBuffer(bufToUpdate.Bytes())
-		counter := 0
 		for {
 			char, _, err := buf.ReadRune()
 			if err != nil {
-				// TODO: Log errors other than io.EOF
-				// log.Info("world buffer read error: %v", err)
 				break
 			}
 			if char == '\n' {
-				height++
-				width = 2
+				scr.mapCanvas = append(scr.mapCanvas, runes)
+				runes = []rune{}
 			} else {
-				width++
+				runes = append(runes, char)
 			}
+		}
 
-			scr.screenRunes[height][width] = char
-			counter++
+	case "exits":
+		for {
+			char, _, err := buf.ReadRune()
+			if err != nil {
+				break
+			}
+			if char == '\n' {
+				scr.exitCanvas = runes
+				runes = []rune{}
+			} else {
+				runes = append(runes, char)
+			}
+		}
+
+	case "intro":
+		for {
+			char, _, err := buf.ReadRune()
+			if err != nil {
+				break
+			}
+			if char == '\n' {
+				scr.introCanvas = append(scr.introCanvas, runes)
+				runes = []rune{}
+			} else {
+				runes = append(runes, char)
+			}
+		}
+
+	case "message":
+		for {
+			char, _, err := buf.ReadRune()
+			if err != nil {
+				break
+			}
+			if char == '\n' {
+				scr.messagesCanvas = runes
+				runes = []rune{}
+			} else {
+				runes = append(runes, char)
+			}
 		}
 	}
-
 }

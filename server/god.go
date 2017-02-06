@@ -35,7 +35,7 @@ func God(s *Server) {
 			cl := ev.Client
 			c := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
 			for i := range c {
-				log.Debug(fmt.Sprintf("Clients in room %#v", c[i].Player))
+				log.Debug(fmt.Sprintf("Clients in room %s", c[i].Player.Nickname))
 			}
 
 			switch ev.EventType {
@@ -60,30 +60,16 @@ func God(s *Server) {
 			if msg == "door" {
 				log.Info("Enter door")
 				currentroom := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
-				godPrintRoom(s, cl, currentroom, roomsMap, "", fmt.Sprintf("%s enter the room.", cl.Player.Nickname))
+				godPrintRoom(s, cl, currentroom, roomsMap, "", fmt.Sprintf("%s enter the room.\n", cl.Player.Nickname))
 
 				previousroom := s.OnlineClientsGetByRoom(cl.Player.PreviousArea, cl.Player.PreviousRoom)
 				if previousroom != nil {
-					godPrintRoom(s, cl, previousroom, roomsMap, "", fmt.Sprintf("%s left the room.", cl.Player.Nickname))
+					godPrintRoom(s, cl, previousroom, roomsMap, "", fmt.Sprintf("%s left the room.\n", cl.Player.Nickname))
 				}
 			} else {
-				godPrintRoom(s, cl, c, roomsMap, "", "")
+				godPrintRoom(s, cl, c, roomsMap, msg, "")
 			}
-
-			log.Info(fmt.Sprintf("%s : %s", ev.Client.Name, ev.EventType))
-
-			/*for _, onlineClient := range s.onlineClients {
-				if s.lines == onlineClient.h-2 {
-					onlineClient.conn.Write(ansi.EraseScreen)
-					s.lines = 1
-				}
-
-				onlineClient.writeGoto(onlineClient.h-onlineClient.h+s.lines, 1)
-				onlineClient.writeString(ev.Player.Name + " : " + ev.EventType)
-				onlineClient.writeGoto(onlineClient.h-1, onlineClient.promptBar.position+1)
-			}
-			s.lines++*/
-
+			log.Debug(fmt.Sprintf("%s : %s", ev.Client.Name, ev.EventType))
 		}
 	}
 }
@@ -97,14 +83,10 @@ func godPrintRoom(
 	globalMsg string,
 ) {
 
+	log.Debug("Start Print")
 	positionToCurrent := map[string]bool{}
-
-	//log.Debug(fmt.Sprintf("%#v", clients[0]))
-	//log.Debug(fmt.Sprintf("Player : %#v", clients[0].Player))
-
 	mapArray := roomsMap[clients[0].Player.Area][clients[0].Player.Room]
 
-	// TODO : get only clients in the same room.
 	for i := range clients {
 		c := clients[i]
 		positionToCurrent[c.Player.Position] = false
@@ -116,37 +98,35 @@ func godPrintRoom(
 
 		posToCurr := copyMapWithNewPos(positionToCurrent, c.Player.Position)
 
-		// Insert to screen in mapCanvas[][]
-		// Print map.
+		// Re-create the Screen. Instead of clear
+		c.screen = NewScreen(c.w, c.h)
+
+		// Create map
 		bufmap := area.PrintMap(p, posToCurr, mapArray)
-		c.screen.updateScreen("map", bufmap, c.h, c.w)
+		c.screen.updateScreen("map", bufmap)
+
+		// Create Available movement
+		bufexits := area.PrintExits(area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position))
+		c.screen.updateScreen("exits", bufexits)
+
+		// Create Name and Description of Room
+		buffintro := area.PrintIntro(s.Areas[c.Player.Area].Rooms[c.Player.Room])
+		c.screen.updateScreen("intro", buffintro)
+
+		// TODO : Now messages are global. Seperate private messages.
+		// Create Messages
+		c.screen.updateScreen("message", *bytes.NewBufferString(msg))
+
+		// Finally Draw Screen
 		DrawScreen(c)
-		// Insert to screen in exitsCanvas[][]
-		// Print exits
-		//bufexits := area.PrintExits(area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position))
-		//	c.writeGoto(c.h-4, c.w-40)
-		//c.writeString(bufexits.String())
 
-		// Insert to screen in introCanvas[][]
-		// Print Intro
-		/*buffintro := area.PrintIntro(s.Areas[c.Player.Area].Rooms[c.Player.Room].Description)
-		counter2 := 20
-		buf2 := bytes.NewBuffer(buffintro.Bytes())
-		for {
-			introLine, err := buf2.ReadString('\n')
-			if err != nil {
-				// TODO: Log errors other than io.EOF
-				// log.Info("world buffer read error: %v", err)
-				break
-			}
-			//	c.writeGoto(c.h-counter2, c.w-50)
-			//	c.writeString(introLine)
-			//	counter--
-		}*/
-
+		// Return cursor to prompt bar
 		c.writeGoto(c.h-1, c.promptBar.position+1)
-	}
 
+		// Show cursor again
+		c.conn.Write(ansi.CursorShow)
+	}
+	log.Debug("End Print")
 }
 
 func copyMapWithNewPos(m map[string]bool, currentPos string) map[string]bool {
@@ -160,17 +140,17 @@ func copyMapWithNewPos(m map[string]bool, currentPos string) map[string]bool {
 	return copied
 }
 
+// Initiate the movement to the desired direction.
 func doMove(s *Server, c Client, roomsMap map[string]map[string][][]area.Cube, direction int) string {
 
 	mapArray := roomsMap[c.Player.Area][c.Player.Room]
 	posarray := area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position)
-
 	newPosType := posarray[direction][3]
-
-	log.Debug("After door")
 	newarea := posarray[direction][0]
 	newroom := posarray[direction][2]
 	newpos, _ := strconv.Atoi(posarray[direction][1])
+
+	// Check if the destination cube is available.
 	isAvailable, info := isCubeAvailable(s, c, newarea, newroom, newpos)
 
 	if isAvailable {
@@ -182,57 +162,82 @@ func doMove(s *Server, c Client, roomsMap map[string]map[string][][]area.Cube, d
 		return ""
 	}
 
-	log.Debug(fmt.Sprintf("Direction type : %s ", newPosType))
 	if newPosType == "door" {
 		return "door"
 	}
-	return info
 
+	return info
 }
 
-// isCubeAvailable returns if the given cube is available, otherwise includes info about what or who is
-// occupying it.
+// TODO : After finilize with all cube types , create a check in this function for all types.
+// Check if the given cube is available,
+// otherwise includes info about what or who is occupying it.
 func isCubeAvailable(s *Server, client Client, area string, room string, cube int) (bool, string) {
 
 	if cube <= 0 {
-		return false, "You can't go that way"
+		return false, "You can't go that way\n"
 	}
 
 	online := s.OnlineClients()
 	for i := range online {
 		c := online[i]
 
-		if c.Player.Area == area && c.Player.Room == room && c.Player.Position == strconv.Itoa(cube) && client.Player.Nickname != c.Player.Nickname {
-			return false, c.Player.Nickname + " is blocking the way"
+		if c.Player.Area == area &&
+			c.Player.Room == room &&
+			c.Player.Position == strconv.Itoa(cube) &&
+			client.Player.Nickname != c.Player.Nickname {
+			return false, c.Player.Nickname + " is blocking the way\n"
 		}
 	}
 	return true, ""
 }
 
+// TODO : Divine by percentage all the Canvas to fit dynamicly to ScreenRune
+// TODO : Check for Canvas offset.
+// Append all Canvas to final ScreenRune and print it to user.
 func DrawScreen(c Client) {
+	u := make([]byte, 0)
 
-	c.conn.Write(ansi.CursorHide)
-	c.conn.Write(ansi.Goto(0, 0))
-	c.writeString(convertRunesToString(c.screen.screenRunes))
-
-	/*
-		for i := 0; i < 400; i++ {
-			c.writeString(fmt.Sprintf(" %d:", i) + string(ansi.Attribute(i)))
+	// Add mapCanvas to screenRunes
+	for h := 0; h < len(c.screen.mapCanvas); h++ {
+		for w := 0; w < len(c.screen.mapCanvas[h]); w++ {
+			c.screen.screenRunes[c.h-20+h][w] = c.screen.mapCanvas[h][w]
 		}
-	*/
-	c.conn.Write(ansi.CursorShow)
-
-}
-
-func convertRunesToString(runes [][]rune) string {
-
-	buf := bytes.NewBuffer(nil)
-	for w := 0; w < len(runes); w++ {
-		for h := 0; h < len(runes[w]); h++ {
-			buf.WriteRune(runes[w][h])
-		}
-		buf.WriteRune('\r')
 	}
 
-	return buf.String()
+	// Clear mapCanvas
+	c.screen.mapCanvas = [][]rune{}
+
+	// Add exitCanvas to screenRunes
+	for ex := 0; ex < len(c.screen.exitCanvas); ex++ {
+		c.screen.screenRunes[c.h-10][c.w-c.w+ex] = c.screen.exitCanvas[ex]
+	}
+
+	// Add Intro to screenRunes
+	for h := 0; h < len(c.screen.introCanvas); h++ {
+		for w := 0; w < len(c.screen.introCanvas[h]); w++ {
+			c.screen.screenRunes[h][w] = c.screen.introCanvas[h][w]
+		}
+	}
+
+	// Add Messages to screenRunes
+	for msgCh := 0; msgCh < len(c.screen.messagesCanvas); msgCh++ {
+		c.screen.screenRunes[c.h-10][c.w-50+msgCh] = c.screen.messagesCanvas[msgCh]
+	}
+
+	// Hide Cursor and go to 0,0 potition of the screen.
+	// With this way user won't keep terminal history while
+	// demostrating frame per second illustration.
+	c.conn.Write(ansi.CursorHide)
+	c.conn.Write(ansi.Goto(0, 0))
+
+	// Write all the screen data.
+	for x := 0; x < len(c.screen.screenRunes)-1; x++ {
+		u = append(u, []byte(string("\r"))...)
+		for y := 0; y < len(c.screen.screenRunes[x]); y++ {
+			u = append(u, []byte(string(c.screen.screenRunes[x][y]))...)
+		}
+		u = append(u, []byte(string("\n"))...)
+	}
+	c.conn.Write(u)
 }

@@ -40,7 +40,6 @@ type Server struct {
 	onlineClients map[string]*Client
 	Players       map[string]area.Player
 	Events        chan Event
-	lines         int
 	Areas         map[string]area.Area
 	staticDir     string
 }
@@ -60,11 +59,9 @@ func NewServer(db *Database, port int, idPool <-chan ID) (*Server, error) {
 		idPool:        idPool,
 		onlineClients: make(map[string]*Client),
 		Events:        make(chan Event),
-		lines:         1,
 		Areas:         make(map[string]area.Area),
 		staticDir:     staticDir,
 		Players:       make(map[string]area.Player),
-		//newPlayers: make(chan *Player),
 	}
 
 	if err := s.loadAreas(); err != nil {
@@ -187,15 +184,16 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 	}
 
 	player, _ := s.GetPlayerByNick(name)
-	p := NewClient(id, sshName, name, hash, conn, &player)
-	s.clientLoggedIn(p.Name, p)
+	client := NewClient(id, sshName, name, hash, conn, &player)
+	s.clientLoggedIn(client)
 
-	p.prepareClient(s)
+	client.prepareClient(s)
 
 	go func() {
 		for r := range chanReqs {
 			ok := false
 			log.Warn(fmt.Sprintf("[%s] response: %#v", r.Type, r))
+
 			switch r.Type {
 			case "shell":
 				// We don't accept any commands (Payload),
@@ -208,16 +206,16 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 				// know we have a pty ready for input
 				ok = true
 				strlen := r.Payload[3]
-				p.resizes <- parseDims(r.Payload[strlen+4:])
+				client.resizes <- parseDims(r.Payload[strlen+4:])
 			case "window-change":
-				p.resizes <- parseDims(r.Payload)
+				client.resizes <- parseDims(r.Payload)
 				continue // no response
 			}
 			log.Info(fmt.Sprintf("replying ok to a %q request", r.Type))
 			r.Reply(ok, nil)
 		}
 	}()
-	s.newPlayers <- p
+	s.newPlayers <- client
 }
 
 // parseDims extracts two uint32s from the provided buffer.
@@ -260,9 +258,9 @@ func (s *Server) OnlineClients() []Client {
 
 // clientLoggedIn stores the logged in player into an internal cache that holds
 // all online players.
-func (s *Server) clientLoggedIn(name string, client *Client) {
+func (s *Server) clientLoggedIn(client *Client) {
 	s.Lock()
-	s.onlineClients[name] = client
+	s.onlineClients[client.Name] = client
 	s.Unlock()
 }
 
