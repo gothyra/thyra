@@ -131,7 +131,6 @@ func (c *Client) resizeWatch() {
 			c.conn.Write([]byte(fmt.Sprintf(resizeTmpl, 10, 10,
 				int(math.Max(float64(10-c.w), 0)),
 				int(math.Max(float64(10-c.h), 0)))))
-			c.screen.screenRunes = nil
 			c.ready = false
 		}
 
