@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/droslean/thyraNew/area"
 
@@ -83,7 +84,9 @@ func godPrintRoom(
 	globalMsg string,
 ) {
 
-	log.Debug("Start Print")
+	now := time.Now()
+	log.Debug(fmt.Sprintf("Start of print: %v", now))
+
 	positionToCurrent := map[string]bool{}
 	mapArray := roomsMap[clients[0].Player.Area][clients[0].Player.Room]
 
@@ -126,7 +129,10 @@ func godPrintRoom(
 		// Show cursor again
 		c.conn.Write(ansi.CursorShow)
 	}
-	log.Debug("End Print")
+
+	reallyNow := time.Now()
+	log.Debug(fmt.Sprintf("End of print: %v", reallyNow))
+	log.Debug(fmt.Sprintf("Printed after %f ms", reallyNow.Sub(now).Seconds()*1000))
 }
 
 func copyMapWithNewPos(m map[string]bool, currentPos string) map[string]bool {
