@@ -191,7 +191,13 @@ func PlayerCentricMap(p *Player, online map[string]bool, s [][]Cube) bytes.Buffe
 	for y1 := 0; y1 < len(s); y1++ {
 		for x1 := 0; x1 < len(s[y1]); x1++ {
 
-			if ((x1-px)*(x1-px) + (y1-py)*(y1-py)) <= r*r {
+			// Radius in Circle usage :
+			// ((x1-px)*(x1-px) + (y1-py)*(y1-py)) <= r*r
+			// But it seems to transform the 2d array.
+			// so,
+			// Calculating radius in Square shape.
+			if x1 >= px-r && x1 <= px+r && y1 >= py-r && y1 <= py+r {
+
 				current, ok := online[s[x1][y1].ID]
 				switch {
 				case s[x1][y1].Type == "door":
