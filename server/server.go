@@ -1,11 +1,13 @@
 package server
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
@@ -320,6 +322,32 @@ func (s *Server) OnlineClientsGetByRoom(area, room string) []Client {
 	return clientsSameRoom
 }
 
+func (s *Server) CreateRandomRoom(x, y int) {
+
+	var buffer bytes.Buffer
+	var buffer2 bytes.Buffer
+	id := 0
+	for w := 0; w < x; w++ {
+		for h := 0; h < y; h++ {
+			id++
+			buffer.WriteString(fmt.Sprintf("{ id = \"%d\", posx = \"%d\", posy = \"%d\" },\n", id, w, h))
+
+		}
+	}
+
+	buf := bytes.NewBuffer(buffer.Bytes())
+
+	for i := 0; i < buf.Len(); i++ {
+		random := rand.Intn(10)
+		line, _ := buf.ReadString('\n')
+		if random < 8 {
+			buffer2.WriteString(line)
+		}
+	}
+
+	log.Debug(buffer2.String())
+}
+
 // CreateRoom creates a 2-d array of cubes that essentially consists of a room.
 func (s *Server) CreateRoom(areaName, room string) [][]area.Cube {
 
@@ -336,13 +364,13 @@ func (s *Server) CreateRoom(areaName, room string) [][]area.Cube {
 		}
 	}
 
-	for nick := range roomCubes {
-		posx, _ := strconv.Atoi(roomCubes[nick].POSX)
+	for z := range roomCubes {
+		posx, _ := strconv.Atoi(roomCubes[z].POSX)
 		if posx > biggestx {
 			biggestx = posx
 		}
 
-		posy, _ := strconv.Atoi(roomCubes[nick].POSY)
+		posy, _ := strconv.Atoi(roomCubes[z].POSY)
 		if posy > biggesty {
 			biggesty = posy
 		}
@@ -360,16 +388,16 @@ func (s *Server) CreateRoom(areaName, room string) [][]area.Cube {
 	}
 	biggest++
 
-	maparray := make([][]area.Cube, biggest)
+	maparray := make([][]area.Cube, biggest+20)
 	for i := range maparray {
-		maparray[i] = make([]area.Cube, biggest)
+		maparray[i] = make([]area.Cube, biggest+20)
 	}
 
 	for z := range roomCubes {
 		posx, _ := strconv.Atoi(roomCubes[z].POSX)
 		posy, _ := strconv.Atoi(roomCubes[z].POSY)
 		if roomCubes[z].ID != "" {
-			maparray[posx][posy] = roomCubes[z]
+			maparray[posx+2][posy+2] = roomCubes[z]
 		}
 	}
 

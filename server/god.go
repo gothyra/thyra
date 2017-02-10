@@ -105,7 +105,7 @@ func godPrintRoom(
 		c.screen = NewScreen(c.w, c.h)
 
 		// Create map
-		bufmap := area.PrintMap(p, posToCurr, mapArray)
+		bufmap := area.PlayerCentricMap(p, posToCurr, mapArray)
 		c.screen.updateScreen("map", bufmap)
 
 		// Create Available movement
@@ -207,7 +207,7 @@ func DrawScreen(c Client) {
 	// Add mapCanvas to screenRunes
 	for h := 0; h < len(c.screen.mapCanvas); h++ {
 		for w := 0; w < len(c.screen.mapCanvas[h]); w++ {
-			c.screen.screenRunes[c.h-20+h][w] = c.screen.mapCanvas[h][w]
+			c.screen.screenRunes[c.h-30+h][w+50] = c.screen.mapCanvas[h][w]
 		}
 	}
 
