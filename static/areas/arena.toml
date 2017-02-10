@@ -16,7 +16,10 @@ cubes = [
 { id = "8", posx = "0", posy = "7" },
 { id = "9", posx = "0", posy = "8" },
 { id = "10", posx = "0", posy = "9" },
-{ id = "11", posx = "0", posy = "10" },
+{ id = "11", posx = "0", posy = "10" ,type="door", 
+exits = [ { toarea = "City", toroom ="Inn", tocubeid = "72" },
+ ]
+},
 { id = "12", posx = "0", posy = "11" },
 { id = "13", posx = "0", posy = "12" },
 { id = "16", posx = "0", posy = "15" },

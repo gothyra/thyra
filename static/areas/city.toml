@@ -72,7 +72,9 @@ cubes = [
 { id = "70", posx = "9", posy = "7" },
 { id = "71", posx = "10", posy = "7" },
 { id = "72", posx = "11", posy = "7" },
-{ id = "73", posx = "12", posy = "7" },
+{ id = "73", posx = "12", posy = "7" , type="door",
+ exits = [ { toarea = "Arena", toroom ="Cage", tocubeid = "41" },
+ ]},
 ]
     
 [rooms.Market]

@@ -207,7 +207,7 @@ func DrawScreen(c Client) {
 	// Add mapCanvas to screenRunes
 	for h := 0; h < len(c.screen.mapCanvas); h++ {
 		for w := 0; w < len(c.screen.mapCanvas[h]); w++ {
-			c.screen.screenRunes[c.h-30+h][w+50] = c.screen.mapCanvas[h][w]
+			c.screen.screenRunes[c.h-30+h][c.w-20+w] = c.screen.mapCanvas[h][w]
 		}
 	}
 
@@ -216,7 +216,7 @@ func DrawScreen(c Client) {
 
 	// Add exitCanvas to screenRunes
 	for ex := 0; ex < len(c.screen.exitCanvas); ex++ {
-		c.screen.screenRunes[c.h-10][c.w-c.w+ex] = c.screen.exitCanvas[ex]
+		c.screen.screenRunes[c.h-10][c.w-30+ex] = c.screen.exitCanvas[ex]
 	}
 
 	// Add Intro to screenRunes
@@ -228,7 +228,7 @@ func DrawScreen(c Client) {
 
 	// Add Messages to screenRunes
 	for msgCh := 0; msgCh < len(c.screen.messagesCanvas); msgCh++ {
-		c.screen.screenRunes[c.h-10][c.w-50+msgCh] = c.screen.messagesCanvas[msgCh]
+		c.screen.screenRunes[c.h-8][c.w-50+msgCh] = c.screen.messagesCanvas[msgCh]
 	}
 
 	// Hide Cursor and go to 0,0 potition of the screen.
