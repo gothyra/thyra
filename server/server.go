@@ -98,7 +98,7 @@ func (s *Server) StartServer() {
 		log.Info(fmt.Sprintf("%v", err))
 	}
 	log.Info(fmt.Sprintf("Listening for incoming connections on localhost:%d", s.port))
-	go God(s)
+	go s.God()
 	// accept all tcp
 	for {
 		tcpConn, err := server.AcceptTCP()
@@ -113,8 +113,7 @@ func (s *Server) StartServer() {
 
 func (s *Server) handle(tcpConn *net.TCPConn) {
 	//extract these from connection
-	var sshName string
-	var hash string
+	var sshName, hash string
 	// perform handshake
 	config := &ssh.ServerConfig{
 		PublicKeyCallback: func(conn ssh.ConnMetadata, publicKey ssh.PublicKey) (*ssh.Permissions, error) {

@@ -17,7 +17,7 @@ type Event struct {
 	EventType string
 }
 
-func God(s *Server) {
+func (s *Server) God() {
 	roomsMap := make(map[string]map[string][][]area.Cube)
 	for _, a := range s.Areas {
 		roomsMap[a.Name] = make(map[string][][]area.Cube)
@@ -34,23 +34,23 @@ func God(s *Server) {
 		case ev := <-s.Events:
 			log.Debug(fmt.Sprintf("Event type : %s", ev.EventType))
 			cl := ev.Client
-			c := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
-			for i := range c {
-				log.Debug(fmt.Sprintf("Clients in room %s", c[i].Player.Nickname))
+			online := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
+			for i := range online {
+				log.Debug(fmt.Sprintf("Clients in room %s", online[i].Player.Nickname))
 			}
 
 			switch ev.EventType {
 			case "e", "east":
-				msg = doMove(s, *cl, roomsMap, 0)
+				msg = doMove(*cl, online, roomsMap, 0)
 
 			case "w", "west":
-				msg = doMove(s, *cl, roomsMap, 1)
+				msg = doMove(*cl, online, roomsMap, 1)
 
 			case "n", "north":
-				msg = doMove(s, *cl, roomsMap, 2)
+				msg = doMove(*cl, online, roomsMap, 2)
 
 			case "s", "south":
-				msg = doMove(s, *cl, roomsMap, 3)
+				msg = doMove(*cl, online, roomsMap, 3)
 
 			case "quit":
 				ev.Client.conn.Write(ansi.EraseScreen)
@@ -60,24 +60,22 @@ func God(s *Server) {
 
 			if msg == "door" {
 				log.Info("Enter door")
-				currentroom := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
-				godPrintRoom(s, cl, currentroom, roomsMap, "", fmt.Sprintf("%s enter the room.\n", cl.Player.Nickname))
+				onlineCurrentRoom := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
+				s.godPrintRoom(onlineCurrentRoom, roomsMap, "", fmt.Sprintf("%s enter the room.\n", cl.Player.Nickname))
 
-				previousroom := s.OnlineClientsGetByRoom(cl.Player.PreviousArea, cl.Player.PreviousRoom)
-				if previousroom != nil {
-					godPrintRoom(s, cl, previousroom, roomsMap, "", fmt.Sprintf("%s left the room.\n", cl.Player.Nickname))
+				onlinePreviousRoom := s.OnlineClientsGetByRoom(cl.Player.PreviousArea, cl.Player.PreviousRoom)
+				if onlinePreviousRoom != nil {
+					s.godPrintRoom(onlinePreviousRoom, roomsMap, "", fmt.Sprintf("%s left the room.\n", cl.Player.Nickname))
 				}
 			} else {
-				godPrintRoom(s, cl, c, roomsMap, msg, "")
+				s.godPrintRoom(online, roomsMap, msg, "")
 			}
 			log.Debug(fmt.Sprintf("%s : %s", ev.Client.Name, ev.EventType))
 		}
 	}
 }
 
-func godPrintRoom(
-	s *Server,
-	cl *Client,
+func (s *Server) godPrintRoom(
 	clients []Client,
 	roomsMap map[string]map[string][][]area.Cube,
 	msg string,
@@ -147,7 +145,7 @@ func copyMapWithNewPos(m map[string]bool, currentPos string) map[string]bool {
 }
 
 // Initiate the movement to the desired direction.
-func doMove(s *Server, c Client, roomsMap map[string]map[string][][]area.Cube, direction int) string {
+func doMove(c Client, online []Client, roomsMap map[string]map[string][][]area.Cube, direction int) string {
 
 	mapArray := roomsMap[c.Player.Area][c.Player.Room]
 	posarray := area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position)
@@ -157,7 +155,7 @@ func doMove(s *Server, c Client, roomsMap map[string]map[string][][]area.Cube, d
 	newpos, _ := strconv.Atoi(posarray[direction][1])
 
 	// Check if the destination cube is available.
-	isAvailable, info := isCubeAvailable(s, c, newarea, newroom, newpos)
+	isAvailable, info := isCubeAvailable(c, online, newarea, newroom, newpos)
 
 	if isAvailable {
 		c.Player.PreviousArea = c.Player.Area
@@ -178,13 +176,12 @@ func doMove(s *Server, c Client, roomsMap map[string]map[string][][]area.Cube, d
 // TODO : After finilize with all cube types , create a check in this function for all types.
 // Check if the given cube is available,
 // otherwise includes info about what or who is occupying it.
-func isCubeAvailable(s *Server, client Client, area string, room string, cube int) (bool, string) {
+func isCubeAvailable(client Client, online []Client, area string, room string, cube int) (bool, string) {
 
 	if cube <= 0 {
 		return false, "You can't go that way\n"
 	}
 
-	online := s.OnlineClients()
 	for i := range online {
 		c := online[i]
 
