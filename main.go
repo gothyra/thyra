@@ -41,15 +41,20 @@ func init() {
 	flag.Parse()
 }
 
+var port = flag.Int("port", 3030, "Port to listen on incoming connections")
+
 func main() {
-	db, _ := server.NewDatabase(filepath.Join(os.TempDir(), "thyra.db"), true)
-
-	idPool := make(chan server.ID, 100)
-	for id := 1; id <= 100; id++ {
-		idPool <- server.ID(id)
+	db, err := server.NewDatabase(filepath.Join(os.TempDir(), "thyra.db"), true)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
 	}
-	port := 3030
 
-	s, _ := server.NewServer(db, port, idPool)
-	server.StartServer(s)
+	s, err := server.NewServer(db, *port)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
+
+	s.StartServer()
 }

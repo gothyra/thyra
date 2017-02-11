@@ -46,7 +46,7 @@ type Server struct {
 	staticDir     string
 }
 
-func NewServer(db *Database, port int, idPool <-chan ID) (*Server, error) {
+func NewServer(db *Database, port int) (*Server, error) {
 	// Environment variables
 	staticDir := os.Getenv("THYRA_STATIC")
 	if len(staticDir) == 0 {
@@ -55,6 +55,11 @@ func NewServer(db *Database, port int, idPool <-chan ID) (*Server, error) {
 		log.Warn("Set THYRA_STATIC if you wish to configure the directory for static content")
 	}
 	log.Info(fmt.Sprintf("Using %s for static content", staticDir))
+
+	idPool := make(chan ID, 100)
+	for id := 1; id <= 100; id++ {
+		idPool <- ID(id)
+	}
 
 	s := &Server{
 		port:          port,
@@ -86,12 +91,13 @@ func NewServer(db *Database, port int, idPool <-chan ID) (*Server, error) {
 	return s, nil
 }
 
-func StartServer(s *Server) {
+func (s *Server) StartServer() {
 	// bind to provided port
 	server, err := net.ListenTCP("tcp4", &net.TCPAddr{Port: s.port})
 	if err != nil {
 		log.Info(fmt.Sprintf("%v", err))
 	}
+	log.Info(fmt.Sprintf("Listening for incoming connections on localhost:%d", s.port))
 	go God(s)
 	// accept all tcp
 	for {
