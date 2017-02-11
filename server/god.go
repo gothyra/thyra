@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/droslean/thyraNew/area"
@@ -17,7 +18,9 @@ type Event struct {
 	EventType string
 }
 
-func (s *Server) God() {
+func (s *Server) God(stopCh <-chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	roomsMap := make(map[string]map[string][][]area.Cube)
 	for _, a := range s.Areas {
 		roomsMap[a.Name] = make(map[string][][]area.Cube)
@@ -30,7 +33,9 @@ func (s *Server) God() {
 
 	for {
 		select {
-
+		case <-stopCh:
+			log.Info("God is exiting.")
+			return
 		case ev := <-s.Events:
 			log.Debug(fmt.Sprintf("Event type : %s", ev.EventType))
 			cl := ev.Client

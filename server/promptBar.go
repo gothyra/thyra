@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/jpillora/ansi"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -144,10 +145,17 @@ var (
 	}
 )
 
-func (p *PromptBar) promptBar(s *Server, player *Client) {
+func (p *PromptBar) promptBar(player *Client, eventCh chan Event, stopCh <-chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	for {
-		b := <-p.promptChan
+		var b []byte
+		select {
+		case b = <-p.promptChan:
+		case <-stopCh:
+			log.Info("promptBar is exiting.")
+			return
+		}
 
 		// Parse Arrows
 		if len(b) == 3 && b[0] == ansi.Esc && b[1] == 91 {
@@ -170,6 +178,7 @@ func (p *PromptBar) promptBar(s *Server, player *Client) {
 					cursorBehavor = []byte{ansi.Esc, 91, 67}
 					p.position++
 				}
+
 			// We use ARROW_LEFT to move left through the command for backspace and delete purpose.
 			case c == ARROW_LEFT:
 				if len(p.command) > 0 {
@@ -236,8 +245,9 @@ func (p *PromptBar) promptBar(s *Server, player *Client) {
 		// Enter key
 		case n == ENTER_KEY:
 			if len(p.command) > 0 {
-				p.enterKey(s, player)
+				p.enterKey(player, eventCh, stopCh)
 			}
+
 		// Space key
 		case n == SPACE_KEY:
 			p.position++
@@ -261,7 +271,8 @@ func (p *PromptBar) promptBar(s *Server, player *Client) {
 				player.writeString(p.getCommandAsString())
 				player.writeGoto(player.h-1, p.position+1)
 			}
-			// Delete Key
+
+		// Delete Key
 		case n == DELETE_KEY && b[2] == 51:
 			if p.position < len(p.command) {
 				p.deletePartofCommand(p.position)
@@ -276,8 +287,6 @@ func (p *PromptBar) promptBar(s *Server, player *Client) {
 			log.Info(fmt.Sprintf("%#v", p.command))
 
 		}
-		//event := Event{Player: player, EventType: p.getCommandAsString()}
-		//s.Events <- event
 	}
 }
 
@@ -356,7 +365,7 @@ func (p *PromptBar) arrowDown(player *Client) {
 
 // This function sends an event to s.Events channel.
 // GOD thread will handle those events.
-func (p *PromptBar) enterKey(s *Server, player *Client) {
+func (p *PromptBar) enterKey(player *Client, eventCh chan Event, stopCh <-chan struct{}) {
 	p.clearPromptBar(player)
 	player.conn.Write(ansi.CursorHide)
 
@@ -366,7 +375,11 @@ func (p *PromptBar) enterKey(s *Server, player *Client) {
 
 	p.drawPromptBar(player)
 	event := Event{Client: player, EventType: p.getCommandAsString()}
-	s.Events <- event
+	select {
+	case eventCh <- event:
+	case <-stopCh:
+		return
+	}
 
 	// Clear command array to re-use it again.
 	p.command = []string{}

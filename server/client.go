@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/droslean/thyraNew/area"
 	"github.com/jpillora/ansi"
@@ -51,7 +52,8 @@ var resizeTmpl = string(ansi.Goto(2, 5)) +
 	string(ansi.Set(ansi.Blue)) +
 	"Please resize your terminal to %dx%d (+%dx+%d)" + string(ansi.Set(ansi.Default))
 
-func (c *Client) receiveActions(s *Server) {
+func (c *Client) receiveActions(stopCh <-chan struct{}, wg *sync.WaitGroup) {
+	// defer wg.Done()
 
 	buff := make([]byte, 3)
 
@@ -73,7 +75,12 @@ func (c *Client) receiveActions(s *Server) {
 		}
 
 		// Send byte array to Prompt bar channel
-		c.promptBar.promptChan <- b
+		select {
+		case c.promptBar.promptChan <- b:
+		case <-stopCh:
+			log.Info("receiveActions is exiting.")
+			return
+		}
 	}
 
 }
@@ -86,20 +93,19 @@ func (c *Client) writeGoto(x, y int) {
 	c.conn.Write(ansi.Goto(uint16(x), uint16(y)))
 }
 
-func (c *Client) prepareClient(s *Server) {
+func (c *Client) prepareClient(events chan Event, stopCh <-chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
 
-	go c.receiveActions(s)
+	// wg.Add(1)
+	go c.receiveActions(stopCh, wg)
 
-	// Start Prompt Bar
-	go c.promptBar.promptBar(s, c)
-	go c.resizeWatch()
-	//c.conn.Write(ansi.CursorHide)
-	/*for {
+	wg.Add(1)
+	go c.promptBar.promptBar(c, events, stopCh, wg)
 
-		c.writeGoto(0, 0)
-		c.writeString(readFromFile())
-	}*/
+	wg.Add(1)
+	go c.resizeWatch(stopCh, wg)
 
+	log.Info("prepareClient complete.")
 }
 
 func (c *Client) resetScreen() {
@@ -112,27 +118,33 @@ func (c *Client) resetScreen() {
 	}
 }
 
-func (c *Client) resizeWatch() {
-	for r := range c.resizes {
+func (c *Client) resizeWatch(stopCh <-chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
 
-		c.w = int(r.width)
-		c.h = int(r.height)
-		log.Info(fmt.Sprintf("%s: Width :%d  Height:%d", c.Name, c.w, c.h))
+	for {
+		select {
+		case <-stopCh:
+			log.Info("resizeWatch is exiting.")
+			return
+		case r := <-c.resizes:
+			c.w = int(r.width)
+			c.h = int(r.height)
+			log.Info(fmt.Sprintf("%s: Width :%d  Height:%d", c.Name, c.w, c.h))
 
-		// fits?
-		if c.w >= 30 && c.h >= 30 {
-			c.conn.EraseScreen()
-			// send updates!
-			c.ready = true
-			c.screen = NewScreen(c.w, c.h)
-		} else {
-			// doesnt fit
-			c.conn.EraseScreen()
-			c.conn.Write([]byte(fmt.Sprintf(resizeTmpl, 10, 10,
-				int(math.Max(float64(10-c.w), 0)),
-				int(math.Max(float64(10-c.h), 0)))))
-			c.ready = false
+			// fits?
+			if c.w >= 30 && c.h >= 30 {
+				c.conn.EraseScreen()
+				// send updates!
+				c.ready = true
+				c.screen = NewScreen(c.w, c.h)
+			} else {
+				// doesnt fit
+				c.conn.EraseScreen()
+				c.conn.Write([]byte(fmt.Sprintf(resizeTmpl, 10, 10,
+					int(math.Max(float64(10-c.w), 0)),
+					int(math.Max(float64(10-c.h), 0)))))
+				c.ready = false
+			}
 		}
-
 	}
 }

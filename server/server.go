@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -98,20 +99,48 @@ func (s *Server) StartServer() {
 		log.Info(fmt.Sprintf("%v", err))
 	}
 	log.Info(fmt.Sprintf("Listening for incoming connections on localhost:%d", s.port))
-	go s.God()
-	// accept all tcp
-	for {
-		tcpConn, err := server.AcceptTCP()
-		if err != nil {
-			log.Warn(fmt.Sprintf("accept error (%s)", err))
-			continue
+
+	// Channel for gracefully shutting down all the rest of the threads.
+	stopCh := make(chan struct{})
+	wg := &sync.WaitGroup{}
+
+	// God has all the server-side logic.
+	wg.Add(1)
+	go s.God(stopCh, wg)
+
+	// accept connections
+	// wg.Add(1)
+	go func() {
+		// defer wg.Done()
+
+		for {
+			// TODO: Timeout after some time to unblock the loop occasionally
+			// and check for graceful termination.
+			tcpConn, err := server.AcceptTCP()
+			if err != nil {
+				log.Warn(fmt.Sprintf("accept error (%s)", err))
+				continue
+			}
+			wg.Add(1)
+			go s.handle(tcpConn, stopCh, wg)
 		}
-		go s.handle(tcpConn)
+	}()
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, os.Kill)
+	select {
+	case <-signals:
+		log.Warn("Server is terminating...")
+		close(stopCh)
 	}
 
+	wg.Wait()
+	log.Warn("Server shutdown.")
 }
 
-func (s *Server) handle(tcpConn *net.TCPConn) {
+func (s *Server) handle(tcpConn *net.TCPConn, stopCh <-chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	//extract these from connection
 	var sshName, hash string
 	// perform handshake
@@ -141,7 +170,12 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 		name = string([]rune(name)[:maxlen])
 	}
 	// get the first channel
-	c := <-chans
+	var c ssh.NewChannel
+	select {
+	case c = <-chans:
+	case <-stopCh:
+		return
+	}
 	// channel requests must be serviced - reject rest
 	go func() {
 		for c := range chans {
@@ -164,6 +198,8 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 	id := ID(0)
 	select {
 	case id, _ = <-s.idPool:
+	case <-stopCh:
+		return
 	default:
 	}
 	// show fullgame error
@@ -194,35 +230,50 @@ func (s *Server) handle(tcpConn *net.TCPConn) {
 	client := NewClient(id, sshName, name, hash, conn, &player)
 	s.clientLoggedIn(client)
 
-	client.prepareClient(s)
+	// Client threads that handle all the output from the server are started here.
+	wg.Add(1)
+	client.prepareClient(s.Events, stopCh, wg)
 
+	wg.Add(1)
 	go func() {
-		for r := range chanReqs {
-			ok := false
-			log.Warn(fmt.Sprintf("[%s] response: %#v", r.Type, r))
+		defer wg.Done()
 
-			switch r.Type {
-			case "shell":
-				// We don't accept any commands (Payload),
-				// only the default shell.
-				if len(r.Payload) == 0 {
+		for {
+			select {
+			case <-stopCh:
+				log.Info("handle exiting.")
+				return
+			case r := <-chanReqs:
+				ok := false
+				log.Warn(fmt.Sprintf("[%s] response: %#v", r.Type, r))
+
+				switch r.Type {
+				case "shell":
+					// We don't accept any commands (Payload),
+					// only the default shell.
+					if len(r.Payload) == 0 {
+						ok = true
+					}
+				case "pty-req":
+					// Responding 'ok' here will let the client
+					// know we have a pty ready for input
 					ok = true
+					strlen := r.Payload[3]
+					client.resizes <- parseDims(r.Payload[strlen+4:])
+				case "window-change":
+					client.resizes <- parseDims(r.Payload)
+					continue // no response
 				}
-			case "pty-req":
-				// Responding 'ok' here will let the client
-				// know we have a pty ready for input
-				ok = true
-				strlen := r.Payload[3]
-				client.resizes <- parseDims(r.Payload[strlen+4:])
-			case "window-change":
-				client.resizes <- parseDims(r.Payload)
-				continue // no response
+				log.Info(fmt.Sprintf("replying ok to a %q request", r.Type))
+				r.Reply(ok, nil)
 			}
-			log.Info(fmt.Sprintf("replying ok to a %q request", r.Type))
-			r.Reply(ok, nil)
 		}
 	}()
-	s.newPlayers <- client
+
+	select {
+	case s.newPlayers <- client:
+	case <-stopCh:
+	}
 }
 
 // parseDims extracts two uint32s from the provided buffer.
@@ -327,7 +378,7 @@ func (s *Server) OnlineClientsGetByRoom(area, room string) []Client {
 	return clientsSameRoom
 }
 
-func (s *Server) CreateRandomRoom(x, y int) {
+func CreateRandomRoom(x, y int) {
 
 	var buffer bytes.Buffer
 	var buffer2 bytes.Buffer
@@ -388,6 +439,7 @@ func (s *Server) CreateRoom(areaName, room string) [][]area.Cube {
 		biggest = biggestx
 	}
 
+	// TODO: Figure out why this needs to happen and remove it.
 	if biggest < 5 {
 		biggest = biggest + 5
 	}
