@@ -7,26 +7,28 @@ import (
 )
 
 /*
--Δημιουργία χαρακτήρων με βάση τον αλγόριθμο κουπονιών-
+-Character creation with use of token algorithm-
 
-Η ιδέα είναι απλή. Έχουμε τα εξής κουπόνια:
-4 που έχουν τον αριθμό 3
-4 που έχουν τον αριθμό 4
-4 που έχουν τον αριθμό 5
-4 που έχουν τον αριθμό 6
-Δύο άδεια κουπόνια
+The idea is simple. We have these tokens with the values of:
+4 tokens of value 3
+4 tokens of value 4
+4 tokens of value 5
+4 tokens of value 6
+two empty tokens
 
-Ρίχνουμε ένα εξάπλευρο ζάρι και ότι φέρει, βάζουμε τους πόντους στο πρώτο άδειο κουπόνι και τους υπόλοιπους στον δεύτερο άδειο κουπόνι.
-Δηλαδή, αν φέρω 2 στο εξάπλευρο, Θα έχει το πρώτο αξία 2 και ο δεύτερο 4. Κατόπιν, ανακατεύω τηα κουπόνια και τραβάω στη τύχη 6 φορές τρία μαζί
-κουπόνια. Το σύνολο τους είναι και το χαρακτηριστικό του χαρακτήρα. Έτσι, έχουμε μέσο όρο 14 σε κάθε χαρακτηριστικό (STR, DEX, CON etc.)
-και σύνολο 78 πόντων να μοιραστούν στα 6 χαρακτηριστικά.
+A six-side die is rolled. The result is stored in the first empty token, the remaining in the second. P.e. if the roll results
+to 2, the first token will have the value of 2 and the second of 4. Then, the tokens are shuffled and 3 of them are drawed from
+the stack for 6 times. Every sum of the drawn of the tokens determines the corresponding attribute, starting with Strength
+and moving sequentially.
+This algorithm ensures that there is an average of 14 points for every attribute and a total of 78 points to be disperced
+to the 6 attributes.
 */
 // ------------Standard values-----------
 
 func create_character() {
-	tokens := []int{3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 0, 0} // Τα κουπόνια με τις τιμές τους
-	tokens[16] = random(1, 6)                                             // Το πρώτο άδειο κουπόνι, παίρνει τιμή από 1 ως 6
-	tokens[17] = 6 - tokens[16]                                           // Το δεύτερο άδειο κουπόνι, παίρνει ότι περισσέψει
+	tokens := []int{3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 0, 0} // Tokens and their values.
+	tokens[16] = random(1, 6)                                             // The first empty token, taken a value from 1 to 6.
+	tokens[17] = 6 - tokens[16]                                           // The second token, get's what is left from the first.
 
 	player := &PC{
 		STR: 0,
@@ -59,9 +61,9 @@ func create_character() {
 
 		}
 
-		for i := 0; i < 3; i++ { // Αυτή η for, διαλέγει ένα κουπόνι τυχαία από το slice, το αποθηκεύει στο χαρακτηριστικο
-			numb := rand.Intn(len(tokens))     // και μετά το σμπρώχνει στο τέλος του slice. Μετά, επαναπροσδιορίζουμε όλο το
-			time.Sleep(100 * time.Millisecond) // slice χωρίς το τελικό στοιχείο.
+		for i := 0; i < 3; i++ { // This loop picks a random token from the slice and stores it's value
+			numb := rand.Intn(len(tokens))     // then it pushes it to the end of the slice. After that, it redefines the slice without
+			time.Sleep(100 * time.Millisecond) // the final token.
 			*attribute += tokens[numb]
 			tokens[numb] = tokens[len(tokens)-1]
 			tokens = tokens[:len(tokens)-1]
@@ -74,7 +76,7 @@ func create_character() {
 	for i := 0; i < 20; i++ {
 		fmt.Print("-")
 	}
-	// Από εδώ και κάτω είναι τι μας ενδιαφέρει να φαίνεται στον παίχτη
+	// Printing the results
 	fmt.Println("\n\nAnonymous character has the following attributes:")
 	fmt.Println("STR = ", player.STR)
 	fmt.Println("DEX = ", player.DEX)

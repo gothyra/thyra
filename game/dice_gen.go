@@ -4,8 +4,9 @@ import (
 	"sort"
 )
 
-/* Απλό generator των attributes, όπου ρίχνουμε 4 εξάπλευρα ζάρια και επιλέγουμε τα 3 καλύτερα για να γίνει το αντίστοιχο attribute.
-   Σε περίπτωση που το αποτέλεσμα είναι κάτω του 8, γίνεται 8 αυτόματα
+/*
+Simple character attributes generator, rolling 4 six-sided dice, excluding the minor value of them and sum the rest three.
+If the result is lower than 8, automatically is raised to this number.
 */
 
 func create_character_dice() {
@@ -49,7 +50,7 @@ func create_character_dice() {
 		sort.Ints(dice)
 		//fmt.Println(dice)
 
-		total = dice[1] + dice[2] + dice[3] // Εδώ απορρίπτουμε το πρώτο ζάρι, γιατί είναι πάντα το μικρότερο
+		total = dice[1] + dice[2] + dice[3] // Here we discard the first "die", as is the lowest number.
 		if total < 8 {
 			for total < 8 {
 				total += 1

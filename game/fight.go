@@ -1,7 +1,7 @@
 package game
 
 /*
-Εξομοιωτης βασικης μαχης συμφωνα με τους κανονες της 3.5 εκδοσης
+Combat simulator based on SRD v3.5 rules
 */
 import (
 	"fmt"
@@ -11,27 +11,28 @@ import (
 )
 
 // ------------Standard values-----------
-type PC struct { //Τα στοιχεια του χαρακτήρα.
-	STR        int    `toml:"str"`        //Strength του χαρακτήρα
-	DEX        int    `toml:"dex"`        //Dexterity του χαρακτήρα
-	CON        int    `toml:"con"`        //Constitution του χαρακτήρα
-	INT        int    `toml:"int"`        //Intelligence του χαρακτήρα
-	WIS        int    `toml:"wis"`        //Wisdomw του χαρακτήρα
-	CHA        int    `toml:"cha"`        //Charisma του χαρακτήρα
-	BAB        int    `toml:"bab"`        //Base attack Bonus του χαρακτήρα
-	AC         int    `toml:"ac"`         //Armor Class του χαρακτήρα
-	HP         int    `toml:"hp"`         //Hit points του χαρακτήρα
-	HD         int    `toml:"hd"`         //Hit dice του χαρακτήρα
-	Weapondie  int    `toml:"weapondie"`  //Τύπος ζαριού του όπλου του χαρακτήρα
-	Initiative int    `toml:"initiative"` //Χρειάζεται για την επιλογή ποιός θα παίξει πρώτος
-	Level      int    `toml:"level"`      //Επίπεδο του χαρακτήρα
-	Class      string `toml:"class"`      //Τύπος εξειδίκευσης του χαρακτήρα
-	Armor      string `toml:"armor"`      //Τύπος πανοπλίας που φοράει ο χαρακτήρας
-	Weapon     string `toml:"weapon"`     //Τύπος όπλου που κρατάει ο χαρακτήρας
+type PC struct { //Character's attributes.
+	STR        int    `toml:"str"`        //Strength of the character
+	DEX        int    `toml:"dex"`        //Dexterity of the character
+	CON        int    `toml:"con"`        //Constitution of the character
+	INT        int    `toml:"int"`        //Intelligence of the character
+	WIS        int    `toml:"wis"`        //Wisdomw of the character
+	CHA        int    `toml:"cha"`        //Charisma of the character
+	BAB        int    `toml:"bab"`        //Base attack Bonus of the character
+	AC         int    `toml:"ac"`         //Armor Class of the character
+	HP         int    `toml:"hp"`         //Hit points of the character
+	HD         int    `toml:"hd"`         //Hit dice of the character
+	Weapondie  int    `toml:"weapondie"`  //Type of multiside die of the weapon of the character
+	Initiative int    `toml:"initiative"` //Indicates the initiative, who goes first in a turn-based battle
+	Level      int    `toml:"level"`      //Level of the character
+	Class      string `toml:"class"`      //Type of specialization of the character
+	Armor      string `toml:"armor"`      //type of armor that the character wears
+	Weapon     string `toml:"weapon"`     //type of weapon that the character weilds
 }
 
-/* Εκτελώντας την generateAttrib(), δίνουμε μια τυχαία τιμή από 8 ώς 18 σε κάθε ένα χαρακτηριστικό, και επιλέγουμε μια
-   τυχαία κλάσση, από τις τρείς που διαθέτουμε για αυτό το παράδειγμα, με την assignClass().
+/*
+Executing the function generateAttrib(), a random value from 8 to 18 is assigned for each of the attribute of the
+character and executing the function assignClass(), a random class from the three available is assigned.
 */
 func NewPC() *PC {
 	player := &PC{
@@ -44,7 +45,10 @@ func NewPC() *PC {
 		Level: 1,
 		Class: assignClass(),
 	}
-	// Όπλο και πανοπλία φοράνε τυχαία οι χαρακτηρες, αλλά τα Hit Points και ΒΑΒ υπολογίζονται βάση αλγορίθμου.
+	/*
+		Weapon and armor are assigned randomly to the characters, but Hit Points and BAB are based on algorithms
+		according to the appropriate class
+	*/
 	player.Armor, player.AC = wearArmor(player.DEX)
 	player.HP = calcHP(player.Class, player.Level)
 	player.BAB = calcBAB(player.Class, player.Level)
@@ -55,26 +59,29 @@ func NewPC() *PC {
 }
 
 //------------Functions----------------
-// μια random οπως την ξερουμε
+// Retused function that trully picks number from lowest to maximum
 func random(min, max int) int {
 	max = max + 1
-	rand.Seed(time.Now().UTC().UnixNano()) // Μετράει πολύ μια sleep τελικά
+	rand.Seed(time.Now().UTC().UnixNano()) // A sleep is vital for these calculations
 	return rand.Intn(max-min) + min
 }
 
-// γενικη μεθοδος για να δημιουργουμε τα stats, δηλ. strength, constitution etc.
+// General attribute creation function
 func generateAttrib() int {
 	return random(8, 18)
 }
 
-// Βασικη μεθοδος υπολογισμου του attribute bonus. Θελει προβλεψη για τις αρνητικες τιμες, γιατι παει ανα δυο
-// ποντους το αρνητικο bonus (9 και 8 attribute δινουν -1 κ.ο.κ.)
+/*
+Basic function of calculating the attribute bonus. Negative values need tho shift by one lower, because the
+negative bonus is one per two negative attribute points.
+*/
 func attrModifier(attribute int) int {
 	return (attribute - 10) / 2
 }
 
-// τωρα αυτη διαλεγει στην τυχη μια πανοπλια. Αργοτερα, απλα θα παιρνει το αναγνωριστικο της πανοπλιας απο την βαση δεδομενων
-//και θα υπολογιζει το συνολο του AC
+/*
+This function picks an armor randomly. Then, it will calculate the total AC based on the armor's traits.
+*/
 func wearArmor(dexterity int) (string, int) {
 	lottery := random(1, 5)
 	var armorname string
@@ -84,7 +91,7 @@ func wearArmor(dexterity int) (string, int) {
 	case 1:
 		armorname = "Leather Armor"
 		armorBonus = 2
-		if dexBonus > 8 { // καθε πανοπλια εχει κατωφλι στους ποσους ποντους dexterity modifier μπορουν να προστεθουν
+		if dexBonus > 8 { // Every armor has a limit of how many dexterity bonus points can be added.
 			dexBonus = 8
 		}
 	case 2:
@@ -115,12 +122,14 @@ func wearArmor(dexterity int) (string, int) {
 	return armorname, 10 + armorBonus + dexBonus
 }
 
-// Η μέθοδος αυτή, δίνει όπλο στον χαρακτήρα. Το weapon είναι το όνομα του όπλου και το weapondie είναι πόσες πλευρές έχει το ζάρι
-// που κάνει το damage
+/*
+This method provides a weapon to the character. The variable weapon is the name of the weapon and the variable weapondie
+is the die that the weapon uses to calculate damage.
+*/
 func weildWeapon() (string, int) {
 	lottery := random(1, 5)
 	var weapon string
-	var weapondie int // Στην ουσια ειναι σαν το damroll που ελεγες Νικο οτι εχει το MUD αλλα πιο ξεκαθαρα τα πραγματα
+	var weapondie int
 	switch lottery {
 	case 1:
 		weapon = "fist"
@@ -136,14 +145,15 @@ func weildWeapon() (string, int) {
 		weapondie = 8
 	case 5:
 		weapon = "greataxe"
-		weapondie = 12 // δηλαδη, το ζαρι που ριχνεις για να κανεις damage με το πελεκυ ειναι δωδεκαπλευρο, 1d12
+		weapondie = 12 // At this case, the Greataxe will deal random damage from 1 point to 12 points, a 12-side die.
 	}
 	return weapon, weapondie
 }
 
-// Μια μέθοδος που δίνει τυχαία μια κλάσση στον χαρακτήρα. Αυτό θα χρειαστεί για να υπολογιστούν άλλοι παράγοντες,
-// όπως Hit Points, ΒΑΒ κ.α.
-func assignClass() string { //Τρεις κλασσεις για αρχη και βλεπουμε
+/*
+A function to assign a class randomly to the character. This is essential to calculate other factors, like HP etc.
+*/
+func assignClass() string { //To start with, three classes.
 	lottery := random(1, 3)
 	var class string
 	switch lottery {
@@ -157,11 +167,12 @@ func assignClass() string { //Τρεις κλασσεις για αρχη και
 	return class
 }
 
-// Μέθοδος υπολογισμού του Base Attack Bonus, τον σταθερό αριθμό που χρησιμοποιούν οι χαρακτήρες για να προσθέσουν στο
-// εικοσάπλευρο ζάρι όταν προσπαθούν να χτυπήσουν τον άλλον
+/*
+Function for the Base Attack Bonus (BAB) calculation. This number is added with the 20-side die when a character
+strike a blow to the opponent, to determine if he lands a hit or not.
+*/
 func calcBAB(class string, level int) int {
-	// Οι πινακες για το Base Attack Bonus που ειναι για καθε κλασση βγαινουν βαση αλγοριθμου
-	//Εχει και προβλεψη για αν βαλουμε μεγαλυτερα level
+	// What BAB has every class at what level, depends of an algorithm.
 	BAB := 0
 	switch class {
 	case "Commoner":
@@ -174,10 +185,12 @@ func calcBAB(class string, level int) int {
 	return BAB
 }
 
-// Μέθοδος υπολογισμού των Hit Points. Παίζει ρόλο τι κλάσση είναι ο χαρακτήρας και τι επίπεδο
-// Στην ουσία, κάθε κλάσση έχει ένα τύπο πολύπλευρου ζαριού που το ρίχνει για να προσθέσει το αποτέλεσμα του στα υπάρχοντα
-// ΗΡ κάθε φορά που παίρνει επίπεδο. Στο πρώτο επίπεδο παίρνει τον μέγιστο αριθμό.
-func calcHP(class string, level int) int { // Εχει και προβλεψη για αν βαλουμε μεγαλυτερα level
+/*
+Function of Hit Points calculation. Depends of the class and the level of the character. Basically, every
+class has a specific die, that rolls in every level up and adds the result to the sum of his maximum
+hit points. In the first level, a character starts with the maximum number that this die can score.
+*/
+func calcHP(class string, level int) int {
 	var HP int
 	var HD int
 	switch class {
@@ -212,9 +225,10 @@ func calcHP(class string, level int) int { // Εχει και προβλεψη �
 	return HP
 }
 
-// Μεθοδος μαχης. Πρωτα βαραει ο comb1 και μετα ο comb2. Το initiative καθοριζεται στην main()
-// δοκιμασα "for comb1.HP > 0 || comb2.HP > 0 {" και κανει οτι να'ναι. Γιατι; Για τωρα δουλευει
-//  με αρχικο check των hit points σε ατερμονα βρογχο
+/*
+Battle function. First strikes the comb1 and then comb2. Initiative is determined in main function
+Refactor of "for comb1.HP > 0 || comb2.HP > 0 {" gives fuzzy results. Don't know why.
+*/
 func fight(comb1, comb2 *PC) {
 	for comb1.HP > 0 && comb2.HP > 0 {
 		if (random(1, 20) + comb1.BAB + attrModifier(comb1.STR)) >= comb2.AC {
@@ -283,7 +297,7 @@ func do_fight() {
 	// Setting up player 2
 	player2 := NewPC()
 
-	// τελικο output
+	// final output
 	fmt.Println("-----@@@@@@----@@@@@@@-----\nMy, what a characters you have here?\n-----@@@@@@----@@@@@@@-----")
 	fmt.Println("Player 1, which is a ", player1.Class, ", with ", player1.HP, "HP",
 		"his strength is", player1.STR,
@@ -306,7 +320,7 @@ func do_fight() {
 	fmt.Println("He rolled initiative", player2.Initiative)
 	fmt.Println("----------------------\nLET THE FIGHT BEGIN!\n----------------------")
 
-	//Υπολογισμός initiative, σε περιπτωση ισοπαλιας ξαναριχνουν ζαρια, αλλιως τοποθετουνται με αντιστοιχια στην μεθοδο fight()
+	// Initiative calculation, in case of a draw initiatives are rerolled, else they are assigned in accordance with the function fight()
 	for player1.Initiative == player2.Initiative {
 		player1.Initiative = random(1, 20) + attrModifier(player1.DEX)
 		player2.Initiative = random(1, 20) + attrModifier(player2.DEX)
