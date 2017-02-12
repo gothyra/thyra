@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/droslean/thyraNew/game"
+	"github.com/gothyra/thyra/game"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/jpillora/ansi"

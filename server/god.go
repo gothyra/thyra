@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/droslean/thyraNew/area"
+	"github.com/gothyra/thyra/area"
 
 	"github.com/jpillora/ansi"
 	log "gopkg.in/inconshreveable/log15.v2"

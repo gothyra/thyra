@@ -17,8 +17,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/droslean/thyraNew/area"
-	"github.com/droslean/thyraNew/game"
+	"github.com/gothyra/thyra/area"
+	"github.com/gothyra/thyra/game"
 	"github.com/gothyra/toml"
 
 	"golang.org/x/crypto/ssh"

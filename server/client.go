@@ -5,7 +5,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/droslean/thyraNew/area"
+	"github.com/gothyra/thyra/area"
 	"github.com/jpillora/ansi"
 	"golang.org/x/crypto/ssh"
 	log "gopkg.in/inconshreveable/log15.v2"
