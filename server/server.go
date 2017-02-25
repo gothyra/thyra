@@ -39,7 +39,6 @@ type Server struct {
 	idPool        <-chan ID
 	logf          func(format string, args ...interface{})
 	privateKey    ssh.Signer
-	newPlayers    chan *Client
 	onlineClients map[string]*Client
 	Players       map[string]area.Player
 	Events        chan Event
@@ -141,6 +140,7 @@ func (s *Server) StartServer() {
 func (s *Server) handle(tcpConn *net.TCPConn, stopCh <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	// TODO: Revisit everything ssh-related.
 	//extract these from connection
 	var sshName, hash string
 	// perform handshake
@@ -160,6 +160,8 @@ func (s *Server) handle(tcpConn *net.TCPConn, stopCh <-chan struct{}, wg *sync.W
 		log.Warn(fmt.Sprintf("new connection handshake failed (%s)", err))
 		return
 	}
+	defer sshConn.Close()
+
 	// global requests must be serviced - discard
 	go ssh.DiscardRequests(globalReqs)
 	// protect against XTR (cross terminal renderering) attacks
@@ -185,13 +187,11 @@ func (s *Server) handle(tcpConn *net.TCPConn, stopCh <-chan struct{}, wg *sync.W
 	// must be a 'session'
 	if t := c.ChannelType(); t != "session" {
 		c.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %s", t))
-		sshConn.Close()
 		return
 	}
 	conn, chanReqs, err := c.Accept()
 	if err != nil {
 		log.Warn(fmt.Sprintf("could not accept channel (%s)", err))
-		sshConn.Close()
 		return
 	}
 	// non-blocking pull off the id pool
@@ -205,7 +205,6 @@ func (s *Server) handle(tcpConn *net.TCPConn, stopCh <-chan struct{}, wg *sync.W
 	// show fullgame error
 	if id == 0 {
 		conn.Write([]byte("This game is full.\r\n"))
-		sshConn.Close()
 		return
 	}
 	// default name using id
@@ -220,59 +219,51 @@ func (s *Server) handle(tcpConn *net.TCPConn, stopCh <-chan struct{}, wg *sync.W
 	}
 	log.Info(fmt.Sprintf("Creating new client %q: id: %d, hash: %s", name, id, hash))
 
-	exists, err := s.loadPlayer(name)
-	if !exists {
-		log.Info(fmt.Sprintf("Player %s doesn't exists", name))
-		sshConn.Close()
+	player, err := s.createOrLoadPlayer(name)
+	if err != nil {
+		log.Warn(fmt.Sprintf("Cannot load player %q: %v", name, err))
+		return
 	}
 
-	player, _ := s.GetPlayerByNick(name)
-	client := NewClient(id, sshName, name, hash, conn, &player)
+	client := NewClient(id, sshName, name, hash, conn, player)
 	s.clientLoggedIn(client)
 
 	// Client threads that handle all the output from the server are started here.
 	wg.Add(1)
 	client.prepareClient(s.Events, stopCh, wg)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		for {
-			select {
-			case <-stopCh:
-				log.Info("handle exiting.")
-				return
-			case r := <-chanReqs:
-				ok := false
-				log.Warn(fmt.Sprintf("[%s] response: %#v", r.Type, r))
-
-				switch r.Type {
-				case "shell":
-					// We don't accept any commands (Payload),
-					// only the default shell.
-					if len(r.Payload) == 0 {
-						ok = true
-					}
-				case "pty-req":
-					// Responding 'ok' here will let the client
-					// know we have a pty ready for input
-					ok = true
-					strlen := r.Payload[3]
-					client.resizes <- parseDims(r.Payload[strlen+4:])
-				case "window-change":
-					client.resizes <- parseDims(r.Payload)
-					continue // no response
-				}
-				log.Info(fmt.Sprintf("replying ok to a %q request", r.Type))
-				r.Reply(ok, nil)
+	for {
+		select {
+		case <-stopCh:
+			log.Info(fmt.Sprintf("[%s] handle exiting.", client.Name))
+			return
+		case r := <-chanReqs:
+			if r == nil {
+				continue
 			}
-		}
-	}()
+			log.Info(fmt.Sprintf("[%s] request type: %s", client.Name, r.Type))
 
-	select {
-	case s.newPlayers <- client:
-	case <-stopCh:
+			ok := false
+			switch r.Type {
+			case "shell":
+				// We don't accept any commands (Payload),
+				// only the default shell.
+				if len(r.Payload) == 0 {
+					ok = true
+				}
+			case "pty-req":
+				// Responding 'ok' here will let the client
+				// know we have a pty ready for input
+				ok = true
+				strlen := r.Payload[3]
+				client.resizes <- parseDims(r.Payload[strlen+4:])
+			case "window-change":
+				client.resizes <- parseDims(r.Payload)
+				continue // no response
+			}
+			log.Info(fmt.Sprintf("[%s] replying ok to a %q request", client.Name, r.Type))
+			r.Reply(ok, nil)
+		}
 	}
 }
 
@@ -461,44 +452,17 @@ func (s *Server) CreateRoom(areaName, room string) [][]area.Cube {
 	return maparray
 }
 
-// loadPlayer loads the player into memory.
-func (s *Server) loadPlayer(playerName string) (bool, error) {
-	ok, playerFileName := s.getPlayerFileName(playerName)
-	if !ok {
-		return false, nil
+// getPlayerFileName constructs the path for the player file.
+func (s *Server) getPlayerFileName(playerName string) (string, error) {
+	if !isValidUsername(playerName) {
+		return "", fmt.Errorf("invalid username: %s", playerName)
 	}
-	if _, err := os.Stat(playerFileName); err != nil {
-		return false, nil
-	}
-
-	fileContent, fileIoErr := ioutil.ReadFile(playerFileName)
-	if fileIoErr != nil {
-		log.Info(fmt.Sprintf("%s could not be loaded: %v", playerFileName, fileIoErr))
-		return true, fileIoErr
-	}
-
-	player := area.Player{}
-	if _, err := toml.Decode(string(fileContent), &player); err != nil {
-		log.Info(fmt.Sprintf("%s could not be unmarshaled: %v", playerFileName, err))
-		return true, err
-	}
-
-	log.Info(fmt.Sprintf("Loaded player %q", player.Nickname))
-	// TODO: Lock
-	s.Players[player.Nickname] = player
-
-	return true, nil
+	return s.staticDir + "/player/" + playerName + ".toml", nil
 }
 
-func (s *Server) getPlayerFileName(playerName string) (bool, string) {
-	if !IsValidUsername(playerName) {
-		return false, ""
-	}
-	return true, s.staticDir + "/player/" + playerName + ".toml"
-}
-
-// IsValidUsername checks if the given player name is a valid one.
-func IsValidUsername(playerName string) bool {
+// isValidUsername checks if the given player name is a valid one.
+// TODO: Revisit what we want for a valid username.
+func isValidUsername(playerName string) bool {
 	r, err := regexp.Compile(`^[a-zA-Z0-9_-]{1,40}$`)
 	if err != nil {
 		return false
@@ -509,32 +473,39 @@ func IsValidUsername(playerName string) bool {
 	return true
 }
 
-// CreatePlayer creates a player with the given nickname.
-func (s *Server) CreatePlayer(nick string) {
-	ok, playerFileName := s.getPlayerFileName(nick)
-	if !ok {
-		return
-	}
-	if _, err := os.Stat(playerFileName); err == nil {
-		log.Info(fmt.Sprintf("Player %q does already exist.\n", nick))
-		if _, err := s.loadPlayer(nick); err != nil {
-			log.Info(fmt.Sprintf("Player %q cannot be loaded: %v", nick, err))
-		}
-		return
-	}
-	player := area.Player{
-		Nickname: nick,
-		PC:       *game.NewPC(),
-		Area:     "City",
-		Room:     "Inn",
-		Position: "1",
-	}
-	// TODO: Lock
-	s.Players[player.Nickname] = player
-}
+// createOrLoadPlayer creates or loads a player with the given nickname.
+func (s *Server) createOrLoadPlayer(nick string) (*area.Player, error) {
+	s.Lock()
+	defer s.Unlock()
 
-// GetPlayerByNick returns the player by nickname.
-func (s *Server) GetPlayerByNick(nickname string) (area.Player, bool) {
-	player, ok := s.Players[nickname]
-	return player, ok
+	playerFileName, err := s.getPlayerFileName(nick)
+	if err != nil {
+		// Invalid username.
+		return nil, err
+	}
+
+	// If the player already exists, load it.
+	var player area.Player
+	if _, err := os.Stat(playerFileName); err != nil {
+		log.Info(fmt.Sprintf("Creating new player %q.", nick))
+		player = area.Player{
+			Nickname: nick,
+			PC:       *game.NewPC(),
+			Area:     "City",
+			Room:     "Inn",
+			Position: "1",
+		}
+	} else {
+		log.Info(fmt.Sprintf("Player %q already exists.", nick))
+		fileContent, err := ioutil.ReadFile(playerFileName)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := toml.Decode(string(fileContent), &player); err != nil {
+			return nil, err
+		}
+	}
+
+	s.Players[player.Nickname] = player
+	return &player, nil
 }
