@@ -1,11 +1,6 @@
 package server
 
-import (
-	"bytes"
-	"fmt"
-
-	log "gopkg.in/inconshreveable/log15.v2"
-)
+import "bytes"
 
 type Screen struct {
 	width          int
@@ -20,8 +15,6 @@ type Screen struct {
 
 // Initialize new Screen
 func NewScreen(width, height int) *Screen {
-	log.Debug(fmt.Sprintf("NewScreen init : Width :%d  Height:%d", width, height))
-
 	screenRunes := make([][]rune, height)
 	screenColors := make([][]ID, height)
 	for h := 0; h < height-3; h++ {
@@ -50,7 +43,7 @@ func NewScreen(width, height int) *Screen {
 }
 
 // TODO : Check for offsets. Add limitation to all Canvas
-func (scr *Screen) updateScreen(frame string, bufToUpdate bytes.Buffer) {
+func (scr *Screen) updateScreenRunes(frame string, bufToUpdate bytes.Buffer) {
 	runes := make([]rune, 0)
 	buf := bytes.NewBuffer(bufToUpdate.Bytes())
 

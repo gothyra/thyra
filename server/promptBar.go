@@ -145,7 +145,7 @@ var (
 	}
 )
 
-func (p *PromptBar) promptBar(player *Client, eventCh chan Event, stopCh <-chan struct{}, wg *sync.WaitGroup) {
+func (p *PromptBar) promptBar(c *Client, eventCh chan Event, stopCh <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
@@ -160,33 +160,33 @@ func (p *PromptBar) promptBar(player *Client, eventCh chan Event, stopCh <-chan 
 		// Parse Arrows
 		if len(b) == 3 && b[0] == ansi.Esc && b[1] == 91 {
 			cursorBehavor := []byte{0, 0, 0}
-			switch c := b[2]; {
+			switch arrow := b[2]; {
 
 			// We use ARROW_UP to go back in command history.
-			case c == ARROW_UP:
+			case arrow == ARROW_UP:
 				p.wantHistory = true
-				p.arrowUp(player)
+				p.arrowUp(c)
 
 			// We use ARROW_DOWN to go forward in command history.
-			case c == ARROW_DOWN:
+			case arrow == ARROW_DOWN:
 				p.wantHistory = true
-				p.arrowDown(player)
+				p.arrowDown(c)
 
 			// We use ARROW_RIGHT to move right through the command for backspace and delete purpose.
-			case c == ARROW_RIGHT:
+			case arrow == ARROW_RIGHT:
 				if len(p.command) > p.position {
 					cursorBehavor = []byte{ansi.Esc, 91, 67}
 					p.position++
 				}
 
 			// We use ARROW_LEFT to move left through the command for backspace and delete purpose.
-			case c == ARROW_LEFT:
+			case arrow == ARROW_LEFT:
 				if len(p.command) > 0 {
 					cursorBehavor = []byte{ansi.Esc, 91, 68}
 					p.position--
 				}
 			}
-			player.conn.Write(cursorBehavor)
+			c.conn.Write(cursorBehavor)
 		} else {
 			p.rollback = 0
 		}
@@ -196,56 +196,56 @@ func (p *PromptBar) promptBar(player *Client, eventCh chan Event, stopCh <-chan 
 		// Check Special chars 1st part
 		case n >= 33 && n <= 47:
 			num := b[0] - 33
-			player.writeString(specialChars1[num])
+			c.writeString(specialChars1[num])
 			p.command = append(p.command, specialChars1[num])
 			p.position++
 
 			// Check Special chars 2nd part
 		case n >= 58 && n <= 64:
 			num := b[0] - 58
-			player.writeString(specialChars2[num])
+			c.writeString(specialChars2[num])
 			p.command = append(p.command, specialChars2[num])
 			p.position++
 
 			// Check Special chars 3rd part
 		case n >= 91 && n <= 96:
 			num := b[0] - 91
-			player.writeString(specialChars3[num])
+			c.writeString(specialChars3[num])
 			p.command = append(p.command, specialChars3[num])
 			p.position++
 
 			// Check Special chars 4th part
 		case n >= 123 && n <= 126:
 			num := b[0] - 123
-			player.writeString(specialChars4[num])
+			c.writeString(specialChars4[num])
 			p.command = append(p.command, specialChars4[num])
 			p.position++
 
 		// Check uppercase letters
 		case n >= UPPER_ALPHA && n <= UPPER_OMEGA:
 			num := b[0] - 65
-			player.writeString(strings.ToUpper(alphabet[num]))
+			c.writeString(strings.ToUpper(alphabet[num]))
 			p.command = append(p.command, strings.ToUpper(alphabet[num]))
 			p.position++
 
 		// Check for lowercase letters
 		case n >= LOW_ALPHA && n <= LOW_OMEGA:
 			num := b[0] - 97
-			player.writeString(alphabet[num])
+			c.writeString(alphabet[num])
 			p.command = append(p.command, alphabet[num])
 			p.position++
 
 		// Check for numbers
 		case n >= NUM_0 && n <= NUM_9:
 			num := b[0] - 48
-			player.writeString(fmt.Sprintf("%d", num))
+			c.writeString(fmt.Sprintf("%d", num))
 			p.command = append(p.command, fmt.Sprintf("%d", num))
 			p.position++
 
 		// Enter key
 		case n == ENTER_KEY:
 			if len(p.command) > 0 {
-				p.enterKey(player, eventCh, stopCh)
+				p.enterKey(c, eventCh, stopCh)
 			}
 
 		// Space key
@@ -253,12 +253,12 @@ func (p *PromptBar) promptBar(player *Client, eventCh chan Event, stopCh <-chan 
 			p.position++
 			if p.position < len(p.command) {
 				p.command = InsertInSlice(p.command, p.position-1, " ")
-				p.clearPromptBar(player)
-				player.writeString(p.getCommandAsString())
-				player.writeGoto(player.h-1, p.position+1)
+				p.clear(c)
+				c.writeString(p.getCommandAsString())
+				c.writeGoto(c.h-1, p.position+1)
 
 			} else {
-				player.writeString(" ")
+				c.writeString(" ")
 				p.command = append(p.command, " ")
 			}
 
@@ -267,18 +267,18 @@ func (p *PromptBar) promptBar(player *Client, eventCh chan Event, stopCh <-chan 
 			if p.position > 0 {
 				p.deletePartofCommand(p.position - 1)
 				p.position--
-				p.clearPromptBar(player)
-				player.writeString(p.getCommandAsString())
-				player.writeGoto(player.h-1, p.position+1)
+				p.clear(c)
+				c.writeString(p.getCommandAsString())
+				c.writeGoto(c.h-1, p.position+1)
 			}
 
 		// Delete Key
 		case n == DELETE_KEY && b[2] == 51:
 			if p.position < len(p.command) {
 				p.deletePartofCommand(p.position)
-				p.clearPromptBar(player)
-				player.writeString(p.getCommandAsString())
-				player.writeGoto(player.h-1, p.position+1)
+				p.clear(c)
+				c.writeString(p.getCommandAsString())
+				c.writeGoto(c.h-1, p.position+1)
 			}
 
 		//  Key ] only for debuging purpose.
@@ -304,30 +304,30 @@ func (p *PromptBar) convertCommadHistoryToArray(command string) {
 	}
 }
 
-func (p *PromptBar) fillPromptBar(player *Client) string {
+func (p *PromptBar) fill(c *Client) string {
 	promptBar := ""
-	for i := 0; i < player.w; i++ {
+	for i := 0; i < c.w; i++ {
 		promptBar += string(ansi.Attribute(230))
 	}
 	return promptBar
 }
 
-func (p *PromptBar) drawPromptBar(player *Client) {
-	player.conn.Write([]byte(string(ansi.Goto(uint16(player.h)-2, 1)) + p.fillPromptBar(player)))
-	player.conn.Write([]byte(string(ansi.Goto(uint16(player.h), 1)) + p.fillPromptBar(player)))
-	player.conn.Write(ansi.Goto(uint16(player.h)-1, 1))
+func (p *PromptBar) draw(c *Client) {
+	c.conn.Write([]byte(string(ansi.Goto(uint16(c.h)-2, 1)) + p.fill(c)))
+	c.conn.Write([]byte(string(ansi.Goto(uint16(c.h), 1)) + p.fill(c)))
+	c.conn.Write(ansi.Goto(uint16(c.h)-1, 1))
 }
 
 // Travel backwards through the history of commands
-func (p *PromptBar) arrowUp(player *Client) {
-	p.clearPromptBar(player)
+func (p *PromptBar) arrowUp(c *Client) {
+	p.clear(c)
 	p.rollback++
 	log.Debug(fmt.Sprintf("Len %d , Rollback %d", len(p.commandHistory), p.rollback))
 	if len(p.commandHistory)-p.rollback >= 0 {
 		// Clear command array to re-use it again.
 		p.command = []string{}
 
-		player.writeString(p.commandHistory[len(p.commandHistory)-p.rollback])
+		c.writeString(p.commandHistory[len(p.commandHistory)-p.rollback])
 		p.convertCommadHistoryToArray(p.commandHistory[len(p.commandHistory)-p.rollback])
 
 		p.position = len(p.command)
@@ -342,15 +342,15 @@ func (p *PromptBar) arrowUp(player *Client) {
 }
 
 // Travel forwards through the history of commands
-func (p *PromptBar) arrowDown(player *Client) {
-	p.clearPromptBar(player)
+func (p *PromptBar) arrowDown(c *Client) {
+	p.clear(c)
 	p.rollback--
 
 	log.Debug(fmt.Sprintf("Len %d , Rollback %d", len(p.commandHistory), p.rollback))
 	if p.rollback > 0 {
 		// Clear command array to re-use it again.
 		p.command = []string{}
-		player.writeString(p.commandHistory[len(p.commandHistory)-p.rollback])
+		c.writeString(p.commandHistory[len(p.commandHistory)-p.rollback])
 		p.convertCommadHistoryToArray(p.commandHistory[len(p.commandHistory)-p.rollback])
 		p.position = len(p.command)
 
@@ -365,16 +365,16 @@ func (p *PromptBar) arrowDown(player *Client) {
 
 // This function sends an event to s.Events channel.
 // GOD thread will handle those events.
-func (p *PromptBar) enterKey(player *Client, eventCh chan Event, stopCh <-chan struct{}) {
-	p.clearPromptBar(player)
-	player.conn.Write(ansi.CursorHide)
+func (p *PromptBar) enterKey(c *Client, eventCh chan Event, stopCh <-chan struct{}) {
+	p.clear(c)
+	c.conn.Write(ansi.CursorHide)
 
 	p.commandHistory = append(p.commandHistory, p.getCommandAsString())
 
-	player.conn.Write(ansi.CursorShow)
+	c.conn.Write(ansi.CursorShow)
 
-	p.drawPromptBar(player)
-	event := Event{Client: player, EventType: p.getCommandAsString()}
+	p.draw(c)
+	event := Event{Client: c, EventType: p.getCommandAsString()}
 	select {
 	case eventCh <- event:
 	case <-stopCh:
@@ -408,7 +408,7 @@ func InsertInSlice(original []string, position int, value string) []string {
 	return target
 }
 
-func (p *PromptBar) clearPromptBar(player *Client) {
-	player.conn.Write(ansi.EraseLine)
-	player.conn.Write(ansi.Goto(uint16(player.h)-1, 1))
+func (p *PromptBar) clear(c *Client) {
+	c.conn.Write(ansi.EraseLine)
+	c.conn.Write(ansi.Goto(uint16(c.h)-1, 1))
 }

@@ -2,11 +2,9 @@ package area
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 
 	"github.com/gothyra/thyra/game"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/jpillora/ansi"
 )
@@ -34,6 +32,7 @@ type Player struct {
 	PreviousArea string `toml:"previousArea"`
 }
 
+// TODO: Will happen the bitch's
 type Cube struct {
 	ID    string `toml:"id"`
 	POSX  string `toml:"posx"`
@@ -48,13 +47,20 @@ type Exit struct {
 	ToCubeID string `toml:"tocubeid"`
 }
 
-// Find Available Movement
+// Find available moves
 func FindExits(s [][]Cube, area, room, pos string) [][]string {
-	// TODO : Randomize door exit
-	// TODO : ADD  NE , NW , SE , SW
+	// TODO: Randomize door exit
+	// TODO: ADD  NE , NW , SE , SW
+	// TODO: Make the 2d array a struct
 
 	ctype := "cube"
+	// First field denotes direction:
+	// [0] East, [1] West, [2] North, [3] South
+	// Second field holds the cube we will end up following the direction
+	// [][0] ToArea, [][1] ToCubeID, [][2] ToRoom
 	exitarr := [][]string{}
+
+	// area, id, room, cube type
 	east := []string{area, "0", room, ctype}
 	west := []string{area, "0", room, ctype}
 	north := []string{area, "0", room, ctype}
@@ -133,11 +139,6 @@ func FindExits(s [][]Cube, area, room, pos string) [][]string {
 		}
 	}
 
-	// First field denotes direction:
-	// [0] East, [1] West, [2] North, [3] South
-	// Second array holds the cube we will end up following the direction
-	// [][0] ToArea, [][1] ToCubeID, [][2] ToRoom
-
 	return exitarr
 }
 
@@ -185,8 +186,6 @@ func PlayerCentricMap(p *Player, online map[string]bool, s [][]Cube) bytes.Buffe
 			}
 		}
 	}
-
-	log.Debug(fmt.Sprintf("Position X:%d Y:%d", px, py))
 
 	for y1 := 0; y1 < len(s); y1++ {
 		for x1 := 0; x1 < len(s[y1]); x1++ {

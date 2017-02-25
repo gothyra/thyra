@@ -297,7 +297,7 @@ func (s *Server) OnlineClients() []Client {
 	s.RLock()
 	defer s.RUnlock()
 
-	online := []Client{}
+	var online []Client
 	for _, onlineClient := range s.onlineClients {
 		online = append(online, *onlineClient)
 	}
@@ -370,10 +370,10 @@ func (s *Server) OnlineClientsGetByRoom(area, room string) []Client {
 }
 
 func CreateRandomRoom(x, y int) {
-
 	var buffer bytes.Buffer
 	var buffer2 bytes.Buffer
 	id := 0
+
 	for w := 0; w < x; w++ {
 		for h := 0; h < y; h++ {
 			id++
@@ -508,4 +508,23 @@ func (s *Server) createOrLoadPlayer(nick string) (*area.Player, error) {
 
 	s.Players[player.Nickname] = player
 	return &player, nil
+}
+
+// savePlayer saves the player back to the static directory.
+// TODO: Add an autosave mechanism instead of saving Players
+// once they quit.
+func (s *Server) savePlayer(player area.Player) error {
+	data := &bytes.Buffer{}
+	encoder := toml.NewEncoder(data)
+	err := encoder.Encode(player)
+	if err != nil {
+		return err
+	}
+
+	playerFileName, err := s.getPlayerFileName(player.Nickname)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(playerFileName, data.Bytes(), 0644)
 }

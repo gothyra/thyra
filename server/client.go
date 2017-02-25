@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 
 	"github.com/gothyra/thyra/area"
@@ -13,6 +14,16 @@ import (
 
 type resize struct {
 	width, height uint32
+}
+
+type Clients []Client
+
+func (clients Clients) String() string {
+	var names []string
+	for _, c := range clients {
+		names = append(names, c.Player.Nickname)
+	}
+	return strings.Join(names, ",")
 }
 
 // A Player represents a live TCP connection from a client
@@ -58,7 +69,6 @@ func (c *Client) receiveActions(stopCh <-chan struct{}, wg *sync.WaitGroup) {
 	buff := make([]byte, 3)
 
 	for {
-		log.Debug(fmt.Sprintf("read buff is : %v", buff))
 		n, err := c.conn.Read(buff)
 
 		if err != nil {
@@ -129,7 +139,7 @@ func (c *Client) resizeWatch(stopCh <-chan struct{}, wg *sync.WaitGroup) {
 		case r := <-c.resizes:
 			c.w = int(r.width)
 			c.h = int(r.height)
-			log.Info(fmt.Sprintf("%s: Width :%d  Height:%d", c.Name, c.w, c.h))
+			log.Info(fmt.Sprintf("Player: %s, Width: %d,  Height: %d", c.Player.Nickname, c.w, c.h))
 
 			// fits?
 			if c.w >= 30 && c.h >= 30 {

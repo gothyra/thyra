@@ -37,58 +37,58 @@ func (s *Server) God(stopCh <-chan struct{}, wg *sync.WaitGroup) {
 			log.Info("God is exiting.")
 			return
 		case ev := <-s.Events:
-			log.Debug(fmt.Sprintf("Event type : %s", ev.EventType))
-			cl := ev.Client
-			online := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
-			for i := range online {
-				log.Debug(fmt.Sprintf("Clients in room %s", online[i].Player.Nickname))
-			}
+			log.Debug(fmt.Sprintf("Player: %s, event type: %s", ev.Client.Name, ev.EventType))
+			c := ev.Client
+			online := s.OnlineClientsGetByRoom(c.Player.Area, c.Player.Room)
+			log.Debug(fmt.Sprintf("Clients in room %s: %s", c.Player.Room, Clients(online)))
 
 			switch ev.EventType {
 			case "e", "east":
-				msg = doMove(*cl, online, roomsMap, 0)
+				msg = doMove(c, online, roomsMap, 0)
 
 			case "w", "west":
-				msg = doMove(*cl, online, roomsMap, 1)
+				msg = doMove(c, online, roomsMap, 1)
 
 			case "n", "north":
-				msg = doMove(*cl, online, roomsMap, 2)
+				msg = doMove(c, online, roomsMap, 2)
 
 			case "s", "south":
-				msg = doMove(*cl, online, roomsMap, 3)
+				msg = doMove(c, online, roomsMap, 3)
 
 			case "quit":
-				ev.Client.conn.Write(ansi.EraseScreen)
-				ev.Client.conn.Close()
-				s.clientLoggedOut(ev.Client.Name)
+				c.conn.Write(ansi.EraseScreen)
+				c.conn.Close()
+				s.savePlayer(*c.Player)
+				s.clientLoggedOut(c.Player.Nickname)
 			}
 
+			log.Info(fmt.Sprintf("msg: %s, player: %#v", msg, c.Player))
+
+			onlineCurrentRoom := s.OnlineClientsGetByRoom(c.Player.Area, c.Player.Room)
+
+			var globalMsg string
 			if msg == "door" {
-				log.Info("Enter door")
-				onlineCurrentRoom := s.OnlineClientsGetByRoom(cl.Player.Area, cl.Player.Room)
-				s.godPrintRoom(onlineCurrentRoom, roomsMap, "", fmt.Sprintf("%s enter the room.\n", cl.Player.Nickname))
+				globalMsg = fmt.Sprintf("%s enters the room.", c.Player.Nickname)
 
-				onlinePreviousRoom := s.OnlineClientsGetByRoom(cl.Player.PreviousArea, cl.Player.PreviousRoom)
+				onlinePreviousRoom := s.OnlineClientsGetByRoom(c.Player.PreviousArea, c.Player.PreviousRoom)
+				log.Info(fmt.Sprintf("Online clients in previous room (%s/%s): %s", c.Player.PreviousArea, c.Player.PreviousRoom, Clients(onlinePreviousRoom)))
 				if onlinePreviousRoom != nil {
-					s.godPrintRoom(onlinePreviousRoom, roomsMap, "", fmt.Sprintf("%s left the room.\n", cl.Player.Nickname))
+					s.godPrintRoom(onlinePreviousRoom, roomsMap, "", fmt.Sprintf("%s left the room.", c.Player.Nickname))
 				}
-			} else {
-				s.godPrintRoom(online, roomsMap, msg, "")
 			}
-			log.Debug(fmt.Sprintf("%s : %s", ev.Client.Name, ev.EventType))
+
+			// TODO: Sort out msg
+			log.Info(fmt.Sprintf("Online clients in room (%s/%s) for player %s: %s", c.Player.Area, c.Player.Room, c.Player.Nickname, Clients(onlineCurrentRoom)))
+			s.godPrintRoom(onlineCurrentRoom, roomsMap, "", globalMsg)
 		}
 	}
 }
 
-func (s *Server) godPrintRoom(
-	clients []Client,
-	roomsMap map[string]map[string][][]area.Cube,
-	msg string,
-	globalMsg string,
-) {
-
+// godPrintRoom updates the map, intros, and exits for all the provided clients in a room.
+// msg is a private message for a player and globalMsg is a global message in the room.
+func (s *Server) godPrintRoom(clients []Client, roomsMap map[string]map[string][][]area.Cube, msg, globalMsg string) {
 	now := time.Now()
-	log.Debug(fmt.Sprintf("Start of print: %v", now))
+	log.Debug(fmt.Sprintf("godPrintRoom start: %v", now))
 
 	positionToCurrent := map[string]bool{}
 	mapArray := roomsMap[clients[0].Player.Area][clients[0].Player.Room]
@@ -101,6 +101,7 @@ func (s *Server) godPrintRoom(
 	for i := range clients {
 		c := clients[i]
 		p := c.Player
+		log.Debug(fmt.Sprintf("Player: %s, Area: %s, Room: %s, CubeID: %s", c.Player.Nickname, c.Player.Area, c.Player.Room, c.Player.Position))
 
 		posToCurr := copyMapWithNewPos(positionToCurrent, c.Player.Position)
 
@@ -108,20 +109,20 @@ func (s *Server) godPrintRoom(
 		c.screen = NewScreen(c.w, c.h)
 
 		// Create map
-		bufmap := area.PlayerCentricMap(p, posToCurr, mapArray)
-		c.screen.updateScreen("map", bufmap)
+		bufMap := area.PlayerCentricMap(p, posToCurr, mapArray)
+		c.screen.updateScreenRunes("map", bufMap)
 
 		// Create Available movement
-		bufexits := area.PrintExits(area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position))
-		c.screen.updateScreen("exits", bufexits)
+		bufExits := area.PrintExits(area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position))
+		c.screen.updateScreenRunes("exits", bufExits)
 
 		// Create Name and Description of Room
-		buffintro := area.PrintIntro(s.Areas[c.Player.Area].Rooms[c.Player.Room])
-		c.screen.updateScreen("intro", buffintro)
+		buffIntro := area.PrintIntro(s.Areas[c.Player.Area].Rooms[c.Player.Room])
+		c.screen.updateScreenRunes("intro", buffIntro)
 
-		// TODO : Now messages are global. Seperate private messages.
+		// TODO : Now messages are global. Separate private messages.
 		// Create Messages
-		c.screen.updateScreen("message", *bytes.NewBufferString(msg))
+		c.screen.updateScreenRunes("message", *bytes.NewBufferString(msg))
 
 		// Finally Draw Screen
 		DrawScreen(c)
@@ -134,7 +135,7 @@ func (s *Server) godPrintRoom(
 	}
 
 	reallyNow := time.Now()
-	log.Debug(fmt.Sprintf("End of print: %v", reallyNow))
+	log.Debug(fmt.Sprintf("godPrintRoom end: %v", reallyNow))
 	log.Debug(fmt.Sprintf("Printed after %f ms", reallyNow.Sub(now).Seconds()*1000))
 }
 
@@ -149,41 +150,42 @@ func copyMapWithNewPos(m map[string]bool, currentPos string) map[string]bool {
 	return copied
 }
 
-// Initiate the movement to the desired direction.
-func doMove(c Client, online []Client, roomsMap map[string]map[string][][]area.Cube, direction int) string {
-
+// Initiate the movement to the desired direction. Returns
+func doMove(c *Client, online []Client, roomsMap map[string]map[string][][]area.Cube, direction int) string {
 	mapArray := roomsMap[c.Player.Area][c.Player.Room]
-	posarray := area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position)
-	newPosType := posarray[direction][3]
-	newarea := posarray[direction][0]
-	newroom := posarray[direction][2]
-	newpos, _ := strconv.Atoi(posarray[direction][1])
+	posArray := area.FindExits(mapArray, c.Player.Area, c.Player.Room, c.Player.Position)
+	newPosType := posArray[direction][3]
+	newArea := posArray[direction][0]
+	newRoom := posArray[direction][2]
+	newPos := posArray[direction][1]
+
+	log.Info(fmt.Sprintf("Player: %s, pos: %s->%s, pos type: %s, area: %s->%s, room: %s->%s",
+		c.Player.Nickname, c.Player.Position, newPos, newPosType, c.Player.Area, newArea, c.Player.Room, newRoom))
 
 	// Check if the destination cube is available.
-	isAvailable, info := isCubeAvailable(c, online, newarea, newroom, newpos)
+	isAvailable, info := isCubeAvailable(*c, online, newArea, newRoom, newPos)
 
+	msg := ""
+	if newPosType == "door" {
+		msg = "door"
+	}
 	if isAvailable {
 		c.Player.PreviousArea = c.Player.Area
 		c.Player.PreviousRoom = c.Player.Room
-		c.Player.Position = strconv.Itoa(newpos)
-		c.Player.Area = newarea
-		c.Player.Room = newroom
-		return ""
-	}
-
-	if newPosType == "door" {
-		return "door"
+		c.Player.Position = newPos
+		c.Player.Area = newArea
+		c.Player.Room = newRoom
+		return msg
 	}
 
 	return info
 }
 
-// TODO : After finilize with all cube types , create a check in this function for all types.
+// TODO: Switch cube to a Cube struct.
 // Check if the given cube is available,
 // otherwise includes info about what or who is occupying it.
-func isCubeAvailable(client Client, online []Client, area string, room string, cube int) (bool, string) {
-
-	if cube <= 0 {
+func isCubeAvailable(client Client, online []Client, area string, room string, cube string) (bool, string) {
+	if cubeNum, _ := strconv.Atoi(cube); cubeNum <= 0 {
 		return false, "You can't go that way\n"
 	}
 
@@ -192,7 +194,7 @@ func isCubeAvailable(client Client, online []Client, area string, room string, c
 
 		if c.Player.Area == area &&
 			c.Player.Room == room &&
-			c.Player.Position == strconv.Itoa(cube) &&
+			c.Player.Position == cube &&
 			client.Player.Nickname != c.Player.Nickname {
 			return false, c.Player.Nickname + " is blocking the way\n"
 		}
