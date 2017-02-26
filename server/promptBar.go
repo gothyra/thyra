@@ -252,7 +252,7 @@ func (p *PromptBar) promptBar(c *Client, eventCh chan Event, stopCh <-chan struc
 		case n == SPACE_KEY:
 			p.position++
 			if p.position < len(p.command) {
-				p.command = InsertInSlice(p.command, p.position-1, " ")
+				p.command = insertInSlice(p.command, p.position-1, " ")
 				p.clear(c)
 				c.writeString(p.getCommandAsString())
 				c.writeGoto(c.h-1, p.position+1)
@@ -392,7 +392,7 @@ func (p *PromptBar) deletePartofCommand(position int) {
 	p.command = append(p.command[:position], p.command[position+1:]...)
 }
 
-func InsertInSlice(original []string, position int, value string) []string {
+func insertInSlice(original []string, position int, value string) []string {
 	//grow by 1
 	target := make([]string, len(original)+1)
 

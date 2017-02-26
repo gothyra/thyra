@@ -13,11 +13,6 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-type Event struct {
-	Client    *Client
-	EventType string
-}
-
 func (s *Server) God(stopCh <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -127,7 +122,7 @@ func (s *Server) godPrintRoom(clients []Client, roomsMap map[string]map[string][
 		c.screen.updateScreenRunes("message", *bytes.NewBufferString(msg))
 
 		// Finally Draw Screen
-		DrawScreen(c)
+		drawScreen(c)
 
 		// Return cursor to prompt bar
 		c.writeGoto(c.h-1, c.promptBar.position+1)
@@ -207,7 +202,7 @@ func isCubeAvailable(client Client, online []Client, area string, room string, c
 // TODO : Divine by percentage all the Canvas to fit dynamicly to ScreenRune
 // TODO : Check for Canvas offset.
 // Append all Canvas to final ScreenRune and print it to user.
-func DrawScreen(c Client) {
+func drawScreen(c Client) {
 	u := make([]byte, 0)
 
 	// Add mapCanvas to screenRunes

@@ -103,17 +103,17 @@ func (c *Client) writeGoto(x, y int) {
 	c.conn.Write(ansi.Goto(uint16(x), uint16(y)))
 }
 
-func (c *Client) prepareClient(events chan Event, stopCh <-chan struct{}, wg *sync.WaitGroup) {
+func (c *Client) prepareClient(eventCh chan Event, stopCh <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// wg.Add(1)
 	go c.receiveActions(stopCh, wg)
 
 	wg.Add(1)
-	go c.promptBar.promptBar(c, events, stopCh, wg)
+	go c.promptBar.promptBar(c, eventCh, stopCh, wg)
 
 	wg.Add(1)
-	go c.resizeWatch(stopCh, wg)
+	go c.resizeWatch(eventCh, stopCh, wg)
 
 	log.Info("prepareClient complete.")
 }
@@ -128,7 +128,7 @@ func (c *Client) resetScreen() {
 	}
 }
 
-func (c *Client) resizeWatch(stopCh <-chan struct{}, wg *sync.WaitGroup) {
+func (c *Client) resizeWatch(eventCh chan<- Event, stopCh <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
@@ -142,11 +142,16 @@ func (c *Client) resizeWatch(stopCh <-chan struct{}, wg *sync.WaitGroup) {
 			log.Info(fmt.Sprintf("Player: %s, Width: %d,  Height: %d", c.Player.Nickname, c.w, c.h))
 
 			// fits?
-			if c.w >= 30 && c.h >= 30 {
+			if c.w >= 20 && c.h >= 20 {
 				c.conn.EraseScreen()
 				// send updates!
 				c.ready = true
 				c.screen = NewScreen(c.w, c.h)
+				select {
+				case eventCh <- Event{Client: c, EventType: ""}:
+				case <-stopCh:
+					return
+				}
 			} else {
 				// doesnt fit
 				c.conn.EraseScreen()
