@@ -77,9 +77,11 @@ func (s *Server) God(stopCh <-chan struct{}, wg *sync.WaitGroup) {
 				}
 			}
 
-			// TODO: Sort out msg
-			log.Info(fmt.Sprintf("Online clients in room (%s/%s) for player %s: %s", c.Player.Area, c.Player.Room, c.Player.Nickname, Clients(onlineCurrentRoom)))
-			s.godPrintRoom(onlineCurrentRoom, roomsMap, "", globalMsg)
+			if ev.EventType != "quit" {
+				// TODO: Sort out msg
+				log.Info(fmt.Sprintf("Online clients in room (%s/%s) for player %s: %s", c.Player.Area, c.Player.Room, c.Player.Nickname, Clients(onlineCurrentRoom)))
+				s.godPrintRoom(onlineCurrentRoom, roomsMap, "", globalMsg)
+			}
 		}
 	}
 }
