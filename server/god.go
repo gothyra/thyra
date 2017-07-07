@@ -121,8 +121,8 @@ func (s *Server) godPrintRoom(clients []Client, roomsMap map[string]map[string][
 		// Create Messages
 		c.screen.updateScreenRunes("message", *bytes.NewBufferString(msg))
 
-		// Finally Draw Screen
-		drawScreen(c)
+		// Draw screen with Frame
+		drawScreenWithFrame(c)
 
 		// Return cursor to prompt bar
 		c.writeGoto(c.h-1, c.promptBar.position+1)
@@ -199,6 +199,7 @@ func isCubeAvailable(client Client, online []Client, area string, room string, c
 	return true, ""
 }
 
+/*
 // TODO : Divine by percentage all the Canvas to fit dynamicly to ScreenRune
 // TODO : Check for Canvas offset.
 // Append all Canvas to final ScreenRune and print it to user.
@@ -245,6 +246,63 @@ func drawScreen(c Client) {
 			u = append(u, []byte(string(c.screen.screenRunes[x][y]))...)
 		}
 		u = append(u, []byte(string("\n"))...)
+	}
+	c.conn.Write(u)
+}
+*/
+
+// TODO: add messages,exits and scoresheet
+// Draw screen canvas inside dynamic frames.
+func drawScreenWithFrame(c Client) {
+
+	u := make([]byte, 0)
+	c.conn.Write(ansi.CursorHide)
+	c.conn.Write(ansi.Goto(0, 0))
+
+	// Create Frame
+	for y := 0; y < len(c.screen.screenRunes)-1; y++ {
+		for x := 0; x < len(c.screen.screenRunes[y]); x++ {
+			if x == 0 || x == c.w-1 {
+				c.screen.screenRunes[y][x] = '|'
+			} else if x == int(float64(c.w)/7.5) && y > 0 && y != c.h-4 {
+				c.screen.screenRunes[y][x] = '|'
+			} else if y == c.h-4 || y == 0 {
+				c.screen.screenRunes[y][x] = '-'
+			} else if y == int(float64(c.h)/3) && x > int(float64(c.w)/7.5) {
+				c.screen.screenRunes[y][x] = '-'
+			} else if x == int(float64(c.w)/1.4) && y > int(float64(c.h)/3) {
+				c.screen.screenRunes[y][x] = '|'
+			}
+		}
+	}
+
+	// Add mapCanvas to screenRunes
+	for h := 0; h < len(c.screen.mapCanvas); h++ {
+		for w := 0; w < len(c.screen.mapCanvas[h]); w++ {
+			if int(float64(c.h)/2.5)+h < c.h-4 && int(float64(c.w)/1.3)+w < c.w-2 {
+				c.screen.screenRunes[int(float64(c.h)/2.5)+h][int(float64(c.w)/1.3)+w] = c.screen.mapCanvas[h][w]
+
+			}
+		}
+	}
+	// Clear mapCanvas
+	c.screen.mapCanvas = [][]rune{}
+
+	// Add Intro to screenRunes
+	for h := 0; h < len(c.screen.introCanvas); h++ {
+		for w := 0; w < len(c.screen.introCanvas[h]); w++ {
+			if int(float64(c.h)/100+10)+h > c.h-c.h+2 && int(float64(c.w)/6.3)+w < c.w-2 && h < int(float64(c.h)/3)-2 {
+				c.screen.screenRunes[int(float64(c.h)/100+2)+h][int(float64(c.w)/6.3)+w] = c.screen.introCanvas[h][w]
+			}
+		}
+	}
+
+	// Write all the screen data.
+	for x := 0; x < len(c.screen.screenRunes)-1; x++ {
+		for y := 0; y < len(c.screen.screenRunes[x]); y++ {
+			u = append(u, []byte(string(c.screen.screenRunes[x][y]))...)
+		}
+		u = append(u, []byte(string("\r\n"))...)
 	}
 	c.conn.Write(u)
 }

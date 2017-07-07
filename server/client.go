@@ -142,7 +142,7 @@ func (c *Client) resizeWatch(eventCh chan<- Event, stopCh <-chan struct{}, wg *s
 			log.Info(fmt.Sprintf("Player: %s, Width: %d,  Height: %d", c.Player.Nickname, c.w, c.h))
 
 			// fits?
-			if c.w >= 40 && c.h >= 40 {
+			if c.w >= 10 && c.h >= 10 {
 				c.conn.EraseScreen()
 				// send updates!
 				c.ready = true
