@@ -46,6 +46,7 @@ type Server struct {
 	staticDir     string
 }
 
+// TODO: Use a .thyra.toml file for client configuration.
 func NewServer(port int) (*Server, error) {
 	// Environment variables
 	staticDir := os.Getenv("THYRA_STATIC")
@@ -123,7 +124,7 @@ func (s *Server) StartServer() {
 			// and check for graceful termination.
 			tcpConn, err := server.AcceptTCP()
 			if err != nil {
-				log.Warn(fmt.Sprintf("accept error (%s)", err))
+				log.Warn(err.Error())
 				continue
 			}
 			wg.Add(1)
@@ -289,15 +290,6 @@ func parseDims(b []byte) resize {
 	}
 }
 
-func fingerprintKey(k ssh.PublicKey) string {
-	bytes := md5.Sum(k.Marshal())
-	strbytes := make([]string, len(bytes))
-	for i, b := range bytes {
-		strbytes[i] = fmt.Sprintf("%02x", b)
-	}
-	return strings.Join(strbytes, ":")
-}
-
 // OnlineClients returns all the online players in the server.
 func (s *Server) OnlineClients() []Client {
 	s.RLock()
@@ -329,7 +321,7 @@ func (s *Server) clientLoggedOut(name string) {
 
 // loadAreas loads all the areas from the static directory into memory.
 // TODO: Change the way we load rooms into memory. We should load rooms
-// where online players are. We should also change our schema to hold
+// wherever online players are. We should also change our schema to hold
 // rooms in separate files.
 func (s *Server) loadAreas() error {
 	log.Info("Loading areas ...")
@@ -494,6 +486,7 @@ func (s *Server) createOrLoadPlayer(nick string) (*area.Player, error) {
 	var player area.Player
 	if _, err := os.Stat(playerFileName); err != nil {
 		log.Info(fmt.Sprintf("Creating new player %q.", nick))
+		// TODO: Create a generator for players.
 		player = area.Player{
 			Nickname: nick,
 			PC:       *game.NewPC(),
