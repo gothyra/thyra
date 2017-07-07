@@ -46,7 +46,7 @@ type Server struct {
 	staticDir     string
 }
 
-func NewServer(db *Database, port int) (*Server, error) {
+func NewServer(port int) (*Server, error) {
 	// Environment variables
 	staticDir := os.Getenv("THYRA_STATIC")
 	if len(staticDir) == 0 {
@@ -75,7 +75,13 @@ func NewServer(db *Database, port int) (*Server, error) {
 		os.Exit(1)
 	}
 
-	if err := db.GetPrivateKey(s); err != nil {
+	db, err := newDatabase(filepath.Join(os.TempDir(), "thyra.db"), true)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
+
+	if err := db.getPrivateKey(s); err != nil {
 		return nil, err
 	}
 	if addrs, err := net.InterfaceAddrs(); err == nil {

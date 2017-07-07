@@ -21,16 +21,16 @@ var (
 
 //store is a storage mechanism for
 //various game structs. disk or memory.
-type Database struct {
+type database struct {
 	*bolt.DB
 }
 
-func NewDatabase(loc string, reset bool) (*Database, error) {
+func newDatabase(loc string, reset bool) (*database, error) {
 	b, err := bolt.Open(loc, 0600, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Database error (%s)", err)
 	}
-	db := &Database{
+	db := &database{
 		DB: b,
 	}
 	if reset {
@@ -41,7 +41,7 @@ func NewDatabase(loc string, reset bool) (*Database, error) {
 	return db, nil
 }
 
-func (db *Database) GetPrivateKey(s *Server) error {
+func (db *database) getPrivateKey(s *Server) error {
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(configBucket)
 		if b == nil {

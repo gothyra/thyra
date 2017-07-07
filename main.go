@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/gothyra/thyra/server"
 
@@ -38,23 +37,16 @@ func customFormat() log.Format {
 func init() {
 	h := log.StreamHandler(os.Stdout, customFormat())
 	log.Root().SetHandler(h)
-	flag.Parse()
 }
 
 var port = flag.Int("port", 3030, "Port to listen on incoming connections")
 
 func main() {
-	db, err := server.NewDatabase(filepath.Join(os.TempDir(), "thyra.db"), true)
+	flag.Parse()
+	s, err := server.NewServer(*port)
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
 	}
-
-	s, err := server.NewServer(db, *port)
-	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
-	}
-
 	s.StartServer()
 }
