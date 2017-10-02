@@ -19,8 +19,8 @@ import (
 
 	"github.com/gothyra/thyra/area"
 	"github.com/gothyra/thyra/game"
-	"github.com/gothyra/toml"
 
+	"github.com/BurntSushi/toml"
 	"golang.org/x/crypto/ssh"
 	log "gopkg.in/inconshreveable/log15.v2"
 )
