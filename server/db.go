@@ -8,9 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/crypto/ssh"
-
 	"github.com/boltdb/bolt"
+	"golang.org/x/crypto/ssh"
 )
 
 var (
