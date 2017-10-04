@@ -70,12 +70,14 @@ func (s *Server) God(stopCh <-chan struct{}, wg *sync.WaitGroup) {
 				if onlinePreviousRoom != nil {
 					s.godPrintRoom(onlinePreviousRoom, roomsMap, "", fmt.Sprintf("%s left the room.", c.Player.Nickname))
 				}
+				// TODO: Do writes on the connection here.
 			}
 
 			if ev.EventType != "quit" {
 				// TODO: Sort out msg
 				log.Info(fmt.Sprintf("Online clients in room (%s/%s) for player %s: %s", c.Player.Area, c.Player.Room, c.Player.Nickname, Clients(onlineCurrentRoom)))
 				s.godPrintRoom(onlineCurrentRoom, roomsMap, "", globalMsg)
+				// TODO: Do writes on the connection here.
 			}
 		}
 	}
@@ -83,7 +85,7 @@ func (s *Server) God(stopCh <-chan struct{}, wg *sync.WaitGroup) {
 
 // godPrintRoom updates the map, intros, and exits for all the provided clients in a room.
 // msg is a private message for a player and globalMsg is a global message in the room.
-func (s *Server) godPrintRoom(clients []Client, roomsMap map[string]map[string][][]area.Cube, msg, globalMsg string) {
+func (s *Server) godPrintRoom(clients []Client, roomsMap map[string]map[string][][]area.Cube, msg, globalMsg string) /* Screen */ {
 	now := time.Now()
 	log.Debug(fmt.Sprintf("godPrintRoom start: %v", now))
 
@@ -121,6 +123,7 @@ func (s *Server) godPrintRoom(clients []Client, roomsMap map[string]map[string][
 		// Create Messages
 		c.screen.updateScreenRunes("message", *bytes.NewBufferString(msg))
 
+		// TODO: Move writes out of here.
 		// Draw screen with Frame
 		drawScreenWithFrame(c)
 
