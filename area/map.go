@@ -49,7 +49,7 @@ type Exit struct {
 
 // Find available moves
 func FindExits(s [][]Cube, area, room, pos string) [][]string {
-	// TODO: Randomize door exit
+	// TODO: Randomize door exit.
 	// TODO: ADD  NE , NW , SE , SW
 	// TODO: Make the 2d array a struct
 
