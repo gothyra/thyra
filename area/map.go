@@ -32,7 +32,6 @@ type Player struct {
 	PreviousArea string `toml:"previousArea"`
 }
 
-// TODO: Will happen the bitch's
 type Cube struct {
 	ID    string `toml:"id"`
 	POSX  string `toml:"posx"`
